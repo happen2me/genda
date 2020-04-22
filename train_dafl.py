@@ -1,24 +1,14 @@
 import argparse
-import os
-import numpy as np
-import math
-import sys
-import pdb
-
-import torchvision.transforms as transforms
-
 from torch.utils.data import DataLoader
-from torchvision import datasets
-from torch.autograd import Variable
-
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
+import torchvision.transforms as transforms
 from torchvision.datasets.mnist import MNIST
+
 from models.lenet_half import LeNet5Half
-from torchvision.datasets import CIFAR10
-from torchvision.datasets import CIFAR100
 from models.generator import Generator
+from models.lenet import LeNet5
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST','cifar10','cifar100'])
@@ -49,8 +39,9 @@ accr_best = 0
 
 def run():
     generator = Generator().to(device)
+    teacher = LeNet5()
 
-    teacher = torch.load(opt.teacher_dir + 'teacher.pt').to(device)
+    teacher.load_state_dict(torch.load(opt.teacher_dir + 'teacher.pt')).to(device)
     teacher.eval()
     criterion = torch.nn.CrossEntropyLoss().to(device)
 

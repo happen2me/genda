@@ -7,7 +7,6 @@
 import os
 from models.lenet import LeNet5
 import torch
-from torch.autograd import Variable
 from torchvision.datasets.mnist import MNIST
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
@@ -119,7 +118,7 @@ def main():
     epoch = 10  # dataset is MNIST, 10 for epoch is enough
     for e in range(1, epoch):
         train_and_test(e)
-    torch.save(net, args.output_dir + 'teacher.pt')
+    torch.save(net.state_dict(), args.output_dir + 'teacher.pt')
 
 
 if __name__ == '__main__':
