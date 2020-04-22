@@ -1,9 +1,3 @@
-# Copyright (C) 2019. Huawei Technologies Co., Ltd. All rights reserved.
-
-# This program is free software; you can redistribute it and/or modify it under the terms of the BSD 3-Clause License.
-
-# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD 3-Clause License for more details.
-
 import os
 from models.lenet import LeNet5
 import torch
@@ -119,6 +113,7 @@ def main():
     for e in range(1, epoch):
         train_and_test(e)
     torch.save(net.state_dict(), args.output_dir + 'teacher.pt')
+    print("teacher model saved at ", args.output_dir, 'teacher.pt')
 
 
 if __name__ == '__main__':

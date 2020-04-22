@@ -9,6 +9,7 @@ from torchvision.datasets.mnist import MNIST
 from models.lenet_half import LeNet5Half
 from models.generator import Generator
 from models.lenet import LeNet5
+from utils import partial_load
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST','cifar10','cifar100'])
@@ -29,6 +30,7 @@ parser.add_argument('--output_dir', type=str, default='cache/models/')
 opt = parser.parse_args()
 
 img_shape = (opt.channels, opt.img_size, opt.img_size)
+teacher_path = opt.output_dir + 'teacher.pt'
 
 cuda = True
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -37,22 +39,21 @@ accr = 0
 accr_best = 0
 
 
+def kdloss(y, teacher_scores):
+    p = F.log_softmax(y, dim=1)
+    q = F.softmax(teacher_scores, dim=1)
+    l_kl = F.kl_div(p, q, size_average=False) / y.shape[0]
+    return l_kl
+
+
 def run():
     generator = Generator().to(device)
-    teacher = LeNet5()
-
-    teacher.load_state_dict(torch.load(opt.teacher_dir + 'teacher.pt')).to(device)
+    teacher = partial_load(LeNet5, teacher_path)
     teacher.eval()
     criterion = torch.nn.CrossEntropyLoss().to(device)
 
     teacher = nn.DataParallel(teacher)
     generator = nn.DataParallel(generator)
-
-    def kdloss(y, teacher_scores):
-        p = F.log_softmax(y, dim=1)
-        q = F.softmax(teacher_scores, dim=1)
-        l_kl = F.kl_div(p, q, size_average=False) / y.shape[0]
-        return l_kl
 
     # Configure data loader
     net = LeNet5Half().to(device)
