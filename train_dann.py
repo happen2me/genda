@@ -4,11 +4,13 @@ import torch.nn as nn
 import torch.optim as optim
 import torch
 
-from utils import partial_load
+from utils import partial_load, eval_model
 
 from models.lenet import LeNet5, LeNet5Encoder, LeNet5Classifier
 from models.lenet_half import LeNet5Half, LeNet5HalfEncoder
 from models.discriminator import Discriminator
+
+from datasets.usps import get_usps
 
 
 class ReverseLayerF(Function):
@@ -76,6 +78,7 @@ def kd_loss_fn(s_output, t_output, temperature, labels=None, alpha=0.4, weights=
     loss = (1-alpha)*entropy_loss + alpha*kd_loss*temperature*temperature
     return loss
 
+
 def adapt(model, dataloader_source, dataloader_target, params, dataloader_target_eval = None):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -139,5 +142,9 @@ def adapt(model, dataloader_source, dataloader_target, params, dataloader_target
                 continue
 
             if dataloader_target_eval is not None:
-                eval_tgt(model.get_encoder(), model.get_classifier(), dataloader_target_eval)
+                eval_model(model.get_encoder(), model.get_classifier(), dataloader_target_eval)
 
+
+def run():
+    tgt_data_loader = get_usps(True, batch_size=256)
+    tgt_data_loader_eval = get_usps(False, batch_size=1024)
