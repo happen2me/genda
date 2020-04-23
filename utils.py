@@ -32,11 +32,29 @@ def eval_model(model, data_loader):
     print("Avg Loss = {}, Avg Accuracy = {:2%}".format(loss, acc))
 
 
+def alter_dict_key(state_dict):
+    new_dict = {}
+    for key, val in state_dict.items():
+        new_dict[key[7:]] = val
+    return new_dict
+
+
 def partial_load(model_cls, model_path):
     model = model_cls().to(device)
     model.eval()
     print("loading ", type(model).__name__, " from ", model_path)
     saved_state_dict = torch.load(model_path, map_location=device)
+
+    # remove leading 'module.' in state dict if needed
+    alter = False
+    for key, val in saved_state_dict.items():
+        if key[:7] == 'module.':
+            alter = True
+        break
+    if alter:
+        print("keys in state dict starts with 'module.', trimming it.")
+        saved_state_dict = alter_dict_key(saved_state_dict)
+
     model_state_dict = model.state_dict()
     # filter state dict
     filtered_dict = {k: v for k, v in saved_state_dict.items() if k in model_state_dict}
@@ -45,6 +63,11 @@ def partial_load(model_cls, model_path):
     else:
         print("model and saved weights doesn't fully match, performing partial load. common states: ",
               len(filtered_dict), ", saved states: ", len(saved_state_dict))
+        print("an item in saved dict is: ")
+        for key, val in saved_state_dict.items():
+            print(key)
+            break
     model_state_dict.update(filtered_dict)
     model.load_state_dict(model_state_dict)
     return model
+
