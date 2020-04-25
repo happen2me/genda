@@ -22,6 +22,7 @@ class GenImgs(Dataset):
         rand = torch.randn(1, self.latent_dim).to(device)
         img = self.generator(rand)
         label = torch.squeeze(self.classifier(img), dim=0)
+        label = torch.argmax(label, dim=0)
         img = torch.squeeze(img, dim=0)
         return img.detach(), label.detach()
 

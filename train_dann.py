@@ -12,6 +12,7 @@ from models.lenet_half import LeNet5Half, LeNet5HalfEncoder, LeNet5HalfClassifie
 from models.critic import Critic
 from datasets.usps import get_usps
 from datasets.genimg import get_genimg
+from datasets.mnist import get_mnist
 
 
 encoder_path = 'cache/models/student.pt'
@@ -112,7 +113,7 @@ def adapt(model, dataloader_source, dataloader_target, params, dataloader_target
             label_src_pred, domain_src_pred, feature_src = model(image_src, alpha=alpha)
 
             # TODO: check compatibility
-            err_src_label = loss_class(label_src_pred, torch.max(label_src.view(params.batch_size, 10), 1)[1])
+            err_src_label = loss_class(label_src_pred, label_src)
             err_src_domain = loss_domain(domain_src_pred, domain_src)
 
             # train with target data
