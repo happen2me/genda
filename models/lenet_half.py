@@ -37,7 +37,7 @@ class C3(nn.Module):
         super(C3, self).__init__()
         # Layer 3: Fully Connected. Input = 200. Output = 120.
         self.c3 = nn.Sequential(OrderedDict([
-            ('c3', nn.Conv2d(8, 120, kernel_size=(5, 5))),
+            ('c3', nn.Conv2d(8, 60, kernel_size=(5, 5))),
             ('relu3', nn.ReLU())
         ]))
 
@@ -51,7 +51,7 @@ class F4(nn.Module):
         super(F4, self).__init__()
         # Layer 4: Fully Connected. Input = 120. Output = 84.
         self.f4 = nn.Sequential(OrderedDict([
-            ('f4', nn.Linear(120, 84)),
+            ('f4', nn.Linear(60, 42)),
             ('relu4', nn.ReLU())
         ]))
 
@@ -65,7 +65,7 @@ class F5(nn.Module):
         super(F5, self).__init__()
         # Layer 5: Fully Connected. Input = 84. Output = 10.
         self.f5 = nn.Sequential(OrderedDict([
-            ('f5', nn.Linear(84, 10)),
+            ('f5', nn.Linear(42, 10)),
             ('sig5', nn.LogSoftmax(dim=-1))
         ]))
 
