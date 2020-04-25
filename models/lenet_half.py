@@ -130,3 +130,13 @@ class LeNet5HalfEncoder(nn.Module):
         output = output.view(img.size(0), -1)
         output = self.f4(output)
         return output
+
+
+class LeNet5HalfClassifier(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.f5 = F5()
+
+    def forward(self, img):
+        output = self.f5(img)
+        return output

@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torch.nn.functional as F
 import torch
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -30,6 +31,22 @@ def eval_model(model, data_loader):
     acc /= len(data_loader.dataset)
 
     print("Avg Loss = {}, Avg Accuracy = {:2%}".format(loss, acc))
+
+
+def eval_encoder_and_classifier(encoder, classifier, data_loader):
+    class Full(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.encoder = encoder
+            self.classifier = classifier
+
+        def forward(self, img):
+            feature = self.encoder(img)
+            output = self.classifier(feature)
+            return output
+
+    full = Full()
+    eval_model(full, data_loader)
 
 
 def alter_dict_key(state_dict):
@@ -71,3 +88,11 @@ def partial_load(model_cls, model_path):
     model.load_state_dict(model_state_dict)
     return model
 
+
+def kd_loss_fn(s_output, t_output, temperature, labels=None, alpha=0.4, weights=None):
+    s_output = F.log_softmax(s_output/temperature, dim=1)
+    t_output = F.softmax(t_output/temperature, dim=1)
+    kd_loss = F.kl_div(s_output, t_output, reduction='batchmean')
+    entropy_loss = kd_loss if labels is None else F.cross_entropy(s_output, labels)
+    loss = (1-alpha)*entropy_loss + alpha*kd_loss*temperature*temperature
+    return loss

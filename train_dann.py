@@ -1,16 +1,30 @@
+import argparse
+
 from torch.autograd import Function
-import torch.nn.functional as F
 import torch.nn as nn
 import torch.optim as optim
 import torch
+import numpy as np
 
-from utils import partial_load, eval_model
-
+from utils import partial_load, eval_model, eval_encoder_and_classifier, kd_loss_fn
 from models.lenet import LeNet5, LeNet5Encoder, LeNet5Classifier
-from models.lenet_half import LeNet5Half, LeNet5HalfEncoder
-from models.discriminator import Discriminator
-
+from models.lenet_half import LeNet5Half, LeNet5HalfEncoder, LeNet5HalfClassifier
+from models.critic import Critic
 from datasets.usps import get_usps
+from datasets.genimg import get_genimg
+
+
+encoder_path = 'cache/models/student.pt'
+
+parser = argparse.ArgumentParser(description='adapt student model')
+# Basic model parameters.
+parser.add_argument('--lr', type=float, default='1e-3')
+parser.add_argument('--n_epoch', type=int, default=200)
+parser.add_argument('--batch_size', type=int, default=256)
+parser.add_argument('--temperature', type=int, default=8)
+args = parser.parse_args()
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 class ReverseLayerF(Function):
@@ -30,58 +44,42 @@ class ReverseLayerF(Function):
 class DannFullModel(nn.Module):
     def __init__(self):
         super(DannFullModel, self).__init__()
-        self.lenet5half_encoder = LeNet5HalfEncoder()
-        self.classifier = LeNet5Classifier()
-        self.discriminator = Discriminator(84, 84, 2)
-        self.src_encoder = LeNet5Encoder()
+        self.encoder = LeNet5HalfEncoder()
+        self.classifier = LeNet5HalfClassifier()
+        self.discriminator = Critic(84, 84, 2)
 
     def forward(self, img, alpha):
-        feature = self.lenet5half_encoder(img)
-        src_feature = self.src_encoder(img)
+        feature = self.encoder(img)
         class_label = self.classifier(feature)
         reversed_feature = ReverseLayerF.apply(feature, alpha)
         domain_label = self.discriminator(reversed_feature)
-        return class_label, domain_label, feature, src_feature
+        return class_label, domain_label, feature
 
-    def load(self, encoder_path=None, classifier_path=None, src_encoder_path=None):
+    def load(self, encoder_path=None, classifier_path=None):
         if encoder_path is not None:
-            self.lenet5half_encoder = partial_load(LeNet5HalfEncoder, encoder_path)
+            self.encoder = partial_load(LeNet5HalfEncoder, encoder_path)
         if classifier_path is not None:
-            self.classifier = partial_load(LeNet5Classifier, classifier_path)
-        if src_encoder_path is not None:
-            self.src_encoder = partial_load(LeNet5Encoder, src_encoder_path)
+            self.classifier = partial_load(LeNet5HalfClassifier, classifier_path)
         if self.classifier is not None:
             for p in self.classifier.parameters():
                 p.requires_grad = False
-        if self.lenet5half_encoder is not None:
-            for p in self.lenet5half_encoder.parameters():
+        if self.encoder is not None:
+            for p in self.encoder.parameters():
                 p.requires_grad = True
         if self.discriminator is not None:
             for p in self.discriminator.parameters():
                 p.requires_grad = True
-        if self.src_encoder is not None:
-            for p in self.src_encoder.parameters():
-                p.requires_grad = False
 
     def get_encoder(self):
-        return self.lenet5half_encoder
+        return self.encoder
 
     def get_classifier(self):
         return self.classifier
 
 
-def kd_loss_fn(s_output, t_output, temperature, labels=None, alpha=0.4, weights=None):
-    s_output = F.log_softmax(s_output/temperature, dim=1)
-    t_output = F.softmax(t_output/temperature, dim=1)
-    kd_loss = F.kl_div(s_output, t_output, reduction='batchmean')
-    entropy_loss = kd_loss if labels is None else F.cross_entropy(s_output, labels)
-    loss = (1-alpha)*entropy_loss + alpha*kd_loss*temperature*temperature
-    return loss
 
 
-def adapt(model, dataloader_source, dataloader_target, params, dataloader_target_eval = None):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
+def adapt(model, dataloader_source, dataloader_target, params, dataloader_target_eval=None):
     model.to(device)
 
     optimizer = optim.Adam(model.parameters(), lr=params.lr)
@@ -109,30 +107,19 @@ def adapt(model, dataloader_source, dataloader_target, params, dataloader_target
 
             domain_src = torch.zeros(params.batch_size).long().to(device)
 
-            label_src_pred, domain_src_pred, feature_src, feature_src_org = model(image_src, alpha=alpha)
-            # don't optimize encoder with src image? 相当于这里只训练域判别器?
+            label_src_pred, domain_src_pred, feature_src = model(image_src, alpha=alpha)
 
-            # print("==========================================")
-            # print("label src pred shape ", label_src_pred.shape)
-            # print("label src shape ", label_src.shape)
-            # print("label src shape reshape", label_src.view(50, 10).shape)
-            # print("==========================================")
-
-            err_src_label = loss_class(label_src_pred, torch.max(label_src.view(50, 10), 1)[1])
-
+            # TODO: check compatibility
+            err_src_label = loss_class(label_src_pred, torch.max(label_src.view(params.batch_size, 10), 1)[1])
             err_src_domain = loss_domain(domain_src_pred, domain_src)
-
 
             # train with target data
             assert params.batch_size == len(image_tgt)
             domain_tgt = torch.ones(params.batch_size).long().to(device)
-            label_tgt_pred, domain_tgt_pred, feature_tgt, feature_tgt_org = model(image_tgt, alpha=0)
+            label_tgt_pred, domain_tgt_pred, feature_tgt = model(image_tgt, alpha=alpha)
             err_tgt_domain = loss_domain(domain_tgt_pred, domain_tgt)
 
-            err_kd_loss = loss_feature(feature_src_org, feature_src, params.temperature) \
-                          + loss_feature(feature_tgt_org, feature_tgt, params.temperature)
-
-            err = err_src_label + err_src_domain + err_tgt_domain + err_kd_loss
+            err = err_src_label + err_src_domain + err_tgt_domain
 
             try:
                 err.backward()
@@ -142,9 +129,19 @@ def adapt(model, dataloader_source, dataloader_target, params, dataloader_target
                 continue
 
             if dataloader_target_eval is not None:
-                eval_model(model.get_encoder(), model.get_classifier(), dataloader_target_eval)
+                eval_encoder_and_classifier(model.get_encoder(), model.get_classifier(), dataloader_target_eval)
 
 
 def run():
-    tgt_data_loader = get_usps(True, batch_size=256)
+    src_data_loader = get_genimg(True, batch_size=args.batch_size)
+    tgt_data_loader = get_usps(True, batch_size=args.batch_size)
     tgt_data_loader_eval = get_usps(False, batch_size=1024)
+
+    model = DannFullModel()
+    model.load(encoder_path, encoder_path)
+
+    adapt(model, src_data_loader, tgt_data_loader, args, dataloader_target_eval=tgt_data_loader_eval)
+
+
+if __name__ == '__main__':
+    run()

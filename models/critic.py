@@ -3,12 +3,12 @@
 from torch import nn
 
 
-class Discriminator(nn.Module):
+class Critic(nn.Module):
     """Discriminator model for source domain."""
 
     def __init__(self, input_dims, hidden_dims, output_dims):
         """Init discriminator."""
-        super(Discriminator, self).__init__()
+        super(Critic, self).__init__()
 
         self.restored = False
 
