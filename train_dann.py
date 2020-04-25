@@ -18,7 +18,7 @@ encoder_path = 'cache/models/student.pt'
 
 parser = argparse.ArgumentParser(description='adapt student model')
 # Basic model parameters.
-parser.add_argument('--lr', type=float, default='1e-3')
+parser.add_argument('--lr', type=float, default=2e-4)
 parser.add_argument('--n_epoch', type=int, default=200)
 parser.add_argument('--batch_size', type=int, default=256)
 parser.add_argument('--temperature', type=int, default=8)
@@ -46,7 +46,7 @@ class DannFullModel(nn.Module):
         super(DannFullModel, self).__init__()
         self.encoder = LeNet5HalfEncoder()
         self.classifier = LeNet5HalfClassifier()
-        self.discriminator = Critic(84, 84, 2)
+        self.discriminator = Critic(42, 84, 2)
 
     def forward(self, img, alpha):
         feature = self.encoder(img)
@@ -77,15 +77,12 @@ class DannFullModel(nn.Module):
         return self.classifier
 
 
-
-
 def adapt(model, dataloader_source, dataloader_target, params, dataloader_target_eval=None):
     model.to(device)
 
     optimizer = optim.Adam(model.parameters(), lr=params.lr)
     loss_class = torch.nn.NLLLoss().to(device)
     loss_domain = torch.nn.NLLLoss().to(device)
-    loss_feature = kd_loss_fn
 
     ############
     # Training #
@@ -103,7 +100,12 @@ def adapt(model, dataloader_source, dataloader_target, params, dataloader_target
             alpha = 2. / (1. + np.exp(-10 * p)) - 1
             model.zero_grad()
             # train with source data
-            assert params.batch_size == len(label_src)  # make sure they have same batch size
+            # params.batch_size == len(label_src)  # make sure they have same batch size
+            if params.batch_size != len(label_src) or params.batch_size != len(image_tgt):
+                print("batch_size doesn't equal ",
+                      "len(label_src), " if params.batch_size != len(label_src) else "len(img_target), ",
+                      "continue")
+                continue
 
             domain_src = torch.zeros(params.batch_size).long().to(device)
 
