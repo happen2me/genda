@@ -16,13 +16,15 @@ class GenImgs(Dataset):
         self.length = length
         self.latent_dim = latent_dim
         self.generator = partial_load(Generator, generator_path)
-        self.classifier = partial_load(LeNet5, classifier_path)
 
     def __getitem__(self, index):
         rand = torch.randn(1, self.latent_dim).to(device)
-        img = self.generator(rand)
-        label = torch.squeeze(self.classifier(img), dim=0)
-        label = torch.argmax(label, dim=0)
+        label = torch.LongTensor(1, 1).random_() % 10
+        label_onehot = torch.FloatTensor(1, 10)
+        label_onehot.zero_()
+        label_onehot.scatter_(1, label, 1)
+        label = label.to(device)
+        img = self.generator(torch.cat((rand, label), dim=1))
         img = torch.squeeze(img, dim=0)
         return img.detach(), label.detach()
 
