@@ -104,8 +104,10 @@ def run():
             labels = torch.LongTensor(opt.batch_size, 1).random_() % opt.num_classes
             labels_onehot = torch.FloatTensor(opt.batch_size, opt.num_classes)
             labels_onehot.zero_()
-            labels_onehot.scatter(1, labels, 1)
-            z = torch.cat([z, labels_onehot], dim=1)
+            labels_onehot.scatter_(1, labels, 1)
+            labels = labels.to(device)
+            labels_onehot = labels_onehot.to(device)
+            z = torch.cat((z, labels_onehot), dim=1)
 
             optimizer_G.zero_grad()
             optimizer_S.zero_grad()
