@@ -126,7 +126,7 @@ def run():
             optimizer_G.step()
             optimizer_S.step()
             if i == 1:
-                print ("[Epoch %d/%d] [loss_condition: %f] [loss_ie: %f] [loss_a: %f] [loss_kd: %f]" % (epoch, opt.n_epochs,loss_condition.item(), loss_information_entropy.item(), loss_activation.item(), loss_kd.item()))
+                print ("[Epoch %d/%d] [loss_condition: %f] [loss_a: %f] [loss_kd: %f]" % (epoch, opt.n_epochs,loss_condition.item(), loss_activation.item(), loss_kd.item()))
 
         with torch.no_grad():
             for i, (images, labels) in enumerate(data_test_loader):
