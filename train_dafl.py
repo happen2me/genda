@@ -118,8 +118,8 @@ def run():
             # loss_one_hot = criterion(outputs_T,pred)
             loss_condition = criterion(outputs_T, labels.view(opt.batch_size))
             softmax_o_T = torch.nn.functional.softmax(outputs_T, dim = 1).mean(dim = 0)
-            loss_information_entropy = (softmax_o_T * torch.log(softmax_o_T)).sum()
-            loss = loss_condition * opt.oh + loss_information_entropy * opt.ie + loss_activation * opt.a
+            # loss_information_entropy = (softmax_o_T * torch.log(softmax_o_T)).sum()
+            loss = loss_condition * opt.oh + loss_activation * opt.a
             loss_kd = kdloss(net(gen_imgs.detach()), outputs_T.detach())
             loss += loss_kd
             loss.backward()
