@@ -23,6 +23,7 @@ class GenImgs(Dataset):
         label_onehot = torch.FloatTensor(1, 10)
         label_onehot.zero_()
         label_onehot.scatter_(1, label, 1)
+        label_onehot = label_onehot.to(device)
         label = label.squeeze(dim=1).item()
         img = self.generator(torch.cat((rand, label_onehot), dim=1))
         img = torch.squeeze(img, dim=0)
