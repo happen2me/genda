@@ -16,7 +16,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST','cifar10','cifar100'])
 parser.add_argument('--data', type=str, default='cache/data/')
 parser.add_argument('--teacher_dir', type=str, default='cache/models/')
-parser.add_argument('--n_epochs', type=int, default=600, help='number of epochs of training')
+parser.add_argument('--n_epochs', type=int, default=300, help='number of epochs of training')
 parser.add_argument('--batch_size', type=int, default=512, help='size of the batches')
 parser.add_argument('--lr_G', type=float, default=0.2, help='learning rate')
 parser.add_argument('--lr_S', type=float, default=2e-3, help='learning rate')
@@ -89,7 +89,6 @@ def run():
     #  Training
     # ----------
 
-    batches_done = 0
     accr_best = 0
     for epoch in range(opt.n_epochs):
 
@@ -145,6 +144,7 @@ def run():
             torch.save(net.state_dict(), opt.output_dir + 'student.pt')
             torch.save(generator.state_dict(), opt.output_dir + "generator.pt")
             accr_best = accr
+    print('best accuracy is {}'.format(accr_best))
 
 
 if __name__ == "__main__":
