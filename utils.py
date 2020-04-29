@@ -32,6 +32,7 @@ def eval_model(model, data_loader):
 
     print("Avg Loss = {}, Avg Accuracy = {:2%}".format(loss, acc))
 
+    return acc
 
 def eval_encoder_and_classifier(encoder, classifier, data_loader):
     class Full(nn.Module):
