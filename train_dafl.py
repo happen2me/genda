@@ -12,7 +12,7 @@ from models.generator import Generator
 from models.lenet import LeNet5
 from datasets.mnist import get_mnist
 from datasets.usps import get_usps
-from utils import partial_load
+from utils import partial_load, eval_model
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST','cifar10','cifar100'])
@@ -116,25 +116,14 @@ def run():
             # loss_information_entropy = (softmax_o_T * torch.log(softmax_o_T)).sum()
             loss_kd = kdloss(net(gen_imgs.detach()), outputs_T.detach())
             loss = loss_condition * opt.oh + loss_activation * opt.a + loss_kd * opt.kd
-            loss.backward()
+            loss.sum().backward()
             optimizer_G.step()
             optimizer_S.step()
             if i == 1:
                 print ("[Epoch %d/%d] [loss_condition: %f] [loss_a: %f] [loss_kd: %f]" % (epoch, opt.n_epochs,loss_condition.item(), loss_activation.item(), loss_kd.item()))
 
-        with torch.no_grad():
-            for i, (images, labels) in enumerate(data_test_loader):
-                images = images.to(device)
-                labels = labels.to(device)
-                net.eval()
-                output = net(images)
-                avg_loss += criterion(output, labels).sum()
-                pred = output.data.max(1)[1]
-                total_correct += pred.eq(labels.data.view_as(pred)).sum()
+        accr = eval_model(net, data_test_loader)
 
-        avg_loss /= len(data_test_loader)
-        print('Test Avg. Loss: %f, Accuracy: %f' % (avg_loss.data.item(), float(total_correct) / len(data_test_loader)))
-        accr = round(float(total_correct) / len(data_test_loader), 4)
         if accr > accr_best:
             torch.save(net.state_dict(), opt.output_dir + 'student.pt')
             torch.save(generator.state_dict(), opt.output_dir + "generator.pt")
