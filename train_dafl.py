@@ -46,7 +46,7 @@ accr_best = 0
 def kdloss(y, teacher_scores):
     p = F.log_softmax(y, dim=1)
     q = F.softmax(teacher_scores, dim=1)
-    l_kl = F.kl_div(p, q, size_average=False) / y.shape[0]
+    l_kl = F.kl_div(p, q, reduction='none') / y.shape[0]
     return l_kl
 
 
