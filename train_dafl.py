@@ -10,13 +10,15 @@ from torchvision.datasets.mnist import MNIST
 from models.lenet_half import LeNet5Half
 from models.generator import Generator
 from models.lenet import LeNet5
+from datasets.mnist import get_mnist
+from datasets.usps import get_usps
 from utils import partial_load
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST','cifar10','cifar100'])
 parser.add_argument('--data', type=str, default='cache/data/')
 parser.add_argument('--teacher_dir', type=str, default='cache/models/')
-parser.add_argument('--n_epochs', type=int, default=300, help='number of epochs of training')
+parser.add_argument('--n_epochs', type=int, default=200, help='number of epochs of training')
 parser.add_argument('--batch_size', type=int, default=512, help='size of the batches')
 parser.add_argument('--lr_G', type=float, default=0.2, help='learning rate')
 parser.add_argument('--lr_S', type=float, default=2e-3, help='learning rate')
@@ -26,6 +28,7 @@ parser.add_argument('--channels', type=int, default=1, help='number of image cha
 parser.add_argument('--oh', type=float, default=1, help='one hot loss')
 parser.add_argument('--ie', type=float, default=10, help='information entropy loss')
 parser.add_argument('--a', type=float, default=0.1, help='activation loss')
+parser.add_argument('--kd', type=float, default=1, help='knowledge distillation loss')
 parser.add_argument('--output_dir', type=str, default='cache/models/')
 parser.add_argument('--num_classes', type=int, help='num of classes in the dataset', default=10)
 opt = parser.parse_args()
@@ -62,14 +65,7 @@ def run():
     # Configure data loader
     net = LeNet5Half().to(device)
     net = nn.DataParallel(net)
-    data_test = MNIST(opt.data,
-                      train=False,
-                      transform=transforms.Compose([
-                          transforms.Resize((32, 32)),
-                          transforms.ToTensor(),
-                          transforms.Normalize((0.1307,), (0.3081,))
-                          ]))
-    data_test_loader = DataLoader(data_test, batch_size=64, num_workers=1, shuffle=False)
+    data_test_loader = get_mnist(True, batch_size=64)
 
     # Optimizers
     optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr_G)
@@ -137,9 +133,9 @@ def run():
                 pred = output.data.max(1)[1]
                 total_correct += pred.eq(labels.data.view_as(pred)).sum()
 
-        avg_loss /= len(data_test)
-        print('Test Avg. Loss: %f, Accuracy: %f' % (avg_loss.data.item(), float(total_correct) / len(data_test)))
-        accr = round(float(total_correct) / len(data_test), 4)
+        avg_loss /= len(data_test_loader)
+        print('Test Avg. Loss: %f, Accuracy: %f' % (avg_loss.data.item(), float(total_correct) / len(data_test_loader)))
+        accr = round(float(total_correct) / len(data_test_loader), 4)
         if accr > accr_best:
             torch.save(net.state_dict(), opt.output_dir + 'student.pt')
             torch.save(generator.state_dict(), opt.output_dir + "generator.pt")
