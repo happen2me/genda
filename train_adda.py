@@ -25,7 +25,7 @@ parser.add_argument('--c_learning_rate', type=float, default=1e-4, help='c learn
 parser.add_argument('--d_learning_rate', type=float, default=1e-4, help='d learning rate')
 parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam')
 parser.add_argument('--beta2', type=float, default=0.9, help='beta2 for adam')
-parser.add_argument('--log_step', type=int, default=150, help='interval for logging')
+parser.add_argument('--log_step', type=int, default=10, help='interval for logging')
 parser.add_argument('--save_step', type=int, default=150, help='interval for saving the model')
 parser.add_argument('--eval_step', type=int, default=50, help='interval for testinh the model')
 opt = parser.parse_args()
@@ -40,6 +40,7 @@ def train_tgt(src_encoder, tgt_encoder, critic,
 
     # set train state for Dropout and BN layers
     tgt_encoder.train()
+    critic.to(device)
     critic.train()
 
     # setup criterion and optimizer
@@ -163,9 +164,9 @@ def run():
     for p in src_encoder.parameters():
         p.requires_grad = False
     for p in tgt_encoder.parameters():
-        p.requires_grad = False
-    for p in classifier.parameters():
         p.requires_grad = True
+    for p in classifier.parameters():
+        p.requires_grad = False
 
     train_tgt(src_encoder, tgt_encoder, critic,
               src_data_loader, tgt_data_loader, classifier)
