@@ -76,7 +76,7 @@ def train_tgt(src_encoder, tgt_encoder, critic,
             # extract and concat features
             feat_src = src_encoder(images_src)
             feat_tgt = tgt_encoder(images_tgt)
-            feat_concat = torch.cat((feat_src, feat_tgt), 0)
+            feat_concat = torch.cat((feat_src, feat_tgt), 0).to(device)
 
             # predict on discriminator
             pred_concat = critic(feat_concat.detach())
