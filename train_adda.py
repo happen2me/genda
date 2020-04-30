@@ -16,6 +16,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 teacher_path = 'cache/models/teacher.pt'
 student_path = 'cache/models/student.pt'
+encoder_path = 'cache/models/tgt_encoder.pt'
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--model_root', type=str, default='cache/models/', help='interval for testinh the model')
@@ -155,7 +156,7 @@ def train_tgt(src_encoder, tgt_encoder, critic,
 
 def run():
     src_encoder = partial_load(LeNet5Encoder, teacher_path)
-    tgt_encoder = partial_load(LeNet5HalfEncoder, student_path)
+    tgt_encoder = partial_load(LeNet5HalfEncoder, encoder_path)
     classifier = partial_load(LeNet5Classifier, teacher_path)
     critic = Critic(64, 84, 2)
     src_data_loader = get_genimg(True, opt.batch_size)
