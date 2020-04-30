@@ -160,7 +160,7 @@ def run():
     classifier = partial_load(LeNet5Classifier, teacher_path)
     critic = Critic(64, 84, 2)
     src_data_loader = get_genimg(True, opt.batch_size)
-    tgt_data_loader = get_usps(False, opt.batch_size)
+    tgt_data_loader = get_usps(True, opt.batch_size)
 
     for p in src_encoder.parameters():
         p.requires_grad = False
