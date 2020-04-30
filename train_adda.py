@@ -18,8 +18,8 @@ teacher_path = 'cache/models/teacher.pt'
 student_path = 'cache/models/student.pt'
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--model-root', type=str, default='cache/models/', help='interval for testinh the model')
-parser.add_argument('--n_epochs', type=int, default=200, help='number of epochs of training')
+parser.add_argument('--model_root', type=str, default='cache/models/', help='interval for testinh the model')
+parser.add_argument('--num_epochs', type=int, default=200, help='number of epochs of training')
 parser.add_argument('--batch_size', type=int, default=512, help='size of the batches')
 parser.add_argument('--c_learning_rate', type=float, default=1e-4, help='c learning rate')
 parser.add_argument('--d_learning_rate', type=float, default=1e-4, help='d learning rate')
