@@ -10,6 +10,7 @@ from models.lenet_half import LeNet5HalfEncoder
 from models.critic import Critic
 from datasets.genimg import get_genimg
 from datasets.usps import get_usps
+from datasets.mnist import get_mnist
 from utils import eval_encoder_and_classifier, partial_load
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -28,7 +29,7 @@ parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam')
 parser.add_argument('--beta2', type=float, default=0.9, help='beta2 for adam')
 parser.add_argument('--log_step', type=int, default=10, help='interval for logging')
 parser.add_argument('--save_step', type=int, default=150, help='interval for saving the model')
-parser.add_argument('--eval_step', type=int, default=50, help='interval for testinh the model')
+parser.add_argument('--eval_step', type=int, default=1, help='interval for testinh the model')
 opt = parser.parse_args()
 
 
@@ -147,7 +148,7 @@ def train_tgt(src_encoder, tgt_encoder, critic,
                 opt.model_root,
                 "tgt_encoder.pt"))
 
-        if epoch % 10 == 0:
+        if epoch % opt.eval_step == 0:
             eval_encoder_and_classifier(src_encoder, classifier, tgt_data_loader)
             eval_encoder_and_classifier(tgt_encoder, classifier, tgt_data_loader)
 
@@ -156,10 +157,10 @@ def train_tgt(src_encoder, tgt_encoder, critic,
 
 def run():
     src_encoder = partial_load(LeNet5Encoder, teacher_path)
-    tgt_encoder = partial_load(LeNet5HalfEncoder, encoder_path)
+    tgt_encoder = partial_load(LeNet5HalfEncoder, student_path)
     classifier = partial_load(LeNet5Classifier, teacher_path)
     critic = Critic(64, 84, 2)
-    src_data_loader = get_genimg(True, opt.batch_size)
+    src_data_loader = get_mnist(True, opt.batch_size)
     tgt_data_loader = get_usps(True, opt.batch_size)
 
     for p in src_encoder.parameters():
