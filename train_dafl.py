@@ -61,11 +61,11 @@ def load_classifier(student):
     if alter:
         print("keys in state dict starts with 'module.', trimming it.")
         teacher_dict = alter_dict_key(teacher_dict)
-    classifier_dict = {k: v for k, v in teacher_dict.items() if k.startwith('f5')}
+    classifier_dict = {k: v for k, v in teacher_dict.items() if k.startswith('f5')}
     student_state_dict = student.state_dict()
     student_state_dict.update(classifier_dict)
     student.load_state_dict(student_state_dict)
-    for i, p in student.parameters():
+    for i, p in enumerate(student.parameters()):
         if i > 9:
             p.requires_grad = False
     return student
