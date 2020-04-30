@@ -7,12 +7,12 @@ import torch
 import torchvision.transforms as transforms
 from torchvision.datasets.mnist import MNIST
 
-from models.lenet_half import LeNet5Half
+from models.lenet_half import LeNet5Half, LeNet5HalfEncoder
 from models.generator import Generator
 from models.lenet import LeNet5
 from datasets.mnist import get_mnist
 from datasets.usps import get_usps
-from utils import partial_load, eval_model
+from utils import partial_load, eval_model, alter_dict_key
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST','cifar10','cifar100'])
@@ -50,6 +50,27 @@ def kdloss(y, teacher_scores):
     return l_kl
 
 
+def load_classifier(student):
+    teacher_dict = torch.load(teacher_path)
+    # remove leading 'module.' in state dict if needed
+    alter = False
+    for key, val in teacher_dict.items():
+        if key[:7] == 'module.':
+            alter = True
+        break
+    if alter:
+        print("keys in state dict starts with 'module.', trimming it.")
+        teacher_dict = alter_dict_key(teacher_dict)
+    classifier_dict = {k: v for k, v in teacher_dict.items() if k.startwith('f5')}
+    student_state_dict = student.state_dict()
+    student_state_dict.update(classifier_dict)
+    student.load_state_dict(student_state_dict)
+    for i, p in student.parameters():
+        if i > 9:
+            p.requires_grad = False
+    return student
+
+
 def run():
     generator = Generator().to(device)
     teacher = partial_load(LeNet5, teacher_path)
@@ -64,7 +85,11 @@ def run():
 
     # Configure data loader
     net = LeNet5Half().to(device)
+    net = load_classifier(net)
     net = nn.DataParallel(net)
+
+
+
     data_test_loader = get_mnist(True, batch_size=opt.batch_size)
 
     # Optimizers
