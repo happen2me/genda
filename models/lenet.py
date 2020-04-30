@@ -79,33 +79,17 @@ class F4(nn.Module):
         return output
 
 
-class F5_linear(nn.Module):
+class F5(nn.Module):
     def __init__(self):
-        super(F5_linear, self).__init__()
+        super(F5, self).__init__()
         # Layer 5: Fully Connected. Input = 84. Output = 10.
-        self.f5_linear = nn.Sequential(OrderedDict([
-            ('f5', nn.Linear(64, 10))
-        ]))
-
-    def forward(self, img):
-        if DEBUG:
-            print("in 5th(linear) layer")
-        output = self.f5_linear(img)
-        return output
-
-
-class F5_softmax(nn.Module):
-    def __init__(self):
-        super(F5_softmax, self).__init__()
-        # Layer 5: Fully Connected. Input = 84. Output = 10.
-        self.f5_softmax = nn.Sequential(OrderedDict([
+        self.f5 = nn.Sequential(OrderedDict([
+            ('f5', nn.Linear(64, 10)),
             ('sig5', nn.LogSoftmax(dim=-1))
         ]))
 
     def forward(self, img):
-        if DEBUG:
-            print("in 5th(softmax) layer")
-        output = self.f5_softmax(img)
+        output = self.f5(img)
         return output
 
 
@@ -122,24 +106,7 @@ class LeNet5(nn.Module):
         self.c2_2 = C2()
         self.c3 = C3()
         self.f4 = F4()
-        self.f5_linear = F5_linear()
-        self.f5_softmax = F5_softmax()
-
-    # def forward(self, img):
-    #     output = self.c1(img)
-    #
-    #     x = self.c2_1(output)
-    #     output = self.c2_2(output)
-    #
-    #     output += x
-    #
-    #     output = self.c3(output)
-    #     output = output.view(img.size(0), -1)
-    #     feature = output.view(-1, 120)
-    #     output = self.f4(output)
-    #     output = self.f5_linear(output)
-    #     output = self.f5_softmax(output)
-    #     return output
+        self.f5 = F5()
 
     def forward(self, img, out_feature=False):
         output = self.c1(img)
@@ -153,24 +120,9 @@ class LeNet5(nn.Module):
         output = output.view(img.size(0), -1)
         feature = output.view(-1, 120)
         output = self.f4(output)
-        output = self.f5_linear(output)
-        output = self.f5_softmax(output)
+        output = self.f5(output)
         if out_feature:
             return output, feature
-        return output
-
-
-class LeNet5ClassifierActivation(nn.Module):
-    """
-    Input: from layer f4
-    output: the output of f5 linear
-    """
-    def __init__(self):
-        super(LeNet5ClassifierActivation, self).__init__()
-        self.f5_linear = F5_linear()
-
-    def forward(self, features):
-        output = self.f5_linear(features)
         return output
 
 
@@ -181,12 +133,10 @@ class LeNet5Classifier(nn.Module):
     """
     def __init__(self):
         super(LeNet5Classifier, self).__init__()
-        self.f5_linear = F5_linear()
-        self.f5_softmax = F5_softmax()
+        self.f5 = F5()
 
     def forward(self, features):
-        output = self.f5_linear(features)
-        output = self.f5_softmax(output)
+        output = self.f5(features)
         return output
 
 
