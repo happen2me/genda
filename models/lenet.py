@@ -68,7 +68,7 @@ class F4(nn.Module):
         super(F4, self).__init__()
         # Layer 4: Fully Connected. Input = 120. Output = 84.
         self.f4 = nn.Sequential(OrderedDict([
-            ('f4', nn.Linear(120, 84)),
+            ('f4', nn.Linear(120, 64)),
             ('relu4', nn.ReLU())
         ]))
 
@@ -84,7 +84,7 @@ class F5_linear(nn.Module):
         super(F5_linear, self).__init__()
         # Layer 5: Fully Connected. Input = 84. Output = 10.
         self.f5_linear = nn.Sequential(OrderedDict([
-            ('f5', nn.Linear(84, 10))
+            ('f5', nn.Linear(64, 10))
         ]))
 
     def forward(self, img):
