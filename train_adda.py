@@ -76,10 +76,10 @@ def train_tgt(src_encoder, tgt_encoder, critic,
             # extract and concat features
             feat_src = src_encoder(images_src)
             feat_tgt = tgt_encoder(images_tgt)
-            feat_concat = torch.cat((feat_src, feat_tgt), 0).to(device)
+            feat_concat = torch.cat((feat_src, feat_tgt), 0).detach().to(device)
 
             # predict on discriminator
-            pred_concat = critic(feat_concat.detach())
+            pred_concat = critic(feat_concat)
 
             # prepare real and fake label
             label_src = torch.ones(feat_src.size(0)).long().to(device)
@@ -159,6 +159,13 @@ def run():
     critic = Critic(64, 84, 2)
     src_data_loader = get_genimg(True, opt.batch_size)
     tgt_data_loader = get_usps(False, opt.batch_size)
+
+    for p in src_encoder.parameters():
+        p.requires_grad = False
+    for p in tgt_encoder.parameters():
+        p.requires_grad = False
+    for p in classifier.parameters():
+        p.requires_grad = True
 
     train_tgt(src_encoder, tgt_encoder, critic,
               src_data_loader, tgt_data_loader, classifier)
