@@ -5,6 +5,8 @@ from torchvision.datasets.mnist import MNIST
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 import argparse
+from datasets.mnist import get_mnist
+from datasets.usps import get_usps
 from utils import eval_model
 
 parser = argparse.ArgumentParser(description='train-teacher-network')
@@ -13,6 +15,7 @@ parser = argparse.ArgumentParser(description='train-teacher-network')
 parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST', 'cifar10', 'cifar100'])
 parser.add_argument('--data', type=str, default='cache/data/')
 parser.add_argument('--output_dir', type=str, default='cache/models/')
+parser.add_argument('--batch_size', type=int, default=512)
 args = parser.parse_args()
 
 os.makedirs(args.output_dir, exist_ok=True)
@@ -21,25 +24,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 acc = 0
 acc_best = 0
 
-
-data_train = MNIST(args.data,
-                   download=True,
-                   transform=transforms.Compose([
-                       transforms.Resize((32, 32)),
-                       transforms.ToTensor(),
-                       transforms.Normalize((0.1307,), (0.3081,))
-                   ]))
-data_test = MNIST(args.data,
-                  train=False,
-                  download=True,
-                  transform=transforms.Compose([
-                      transforms.Resize((32, 32)),
-                      transforms.ToTensor(),
-                      transforms.Normalize((0.1307,), (0.3081,))
-                  ]))
-
-data_train_loader = DataLoader(data_train, batch_size=256, shuffle=True, num_workers=8)
-data_test_loader = DataLoader(data_test, batch_size=1024, num_workers=8)
+data_train_loader = get_mnist(True, args.batch_size)
+data_test_loader = get_mnist(False, args.batch_size)
 
 net = LeNet5().to(device)
 criterion = torch.nn.CrossEntropyLoss().to(device)
@@ -96,8 +82,8 @@ def test():
             pred = output.data.max(1)[1]
             total_correct += pred.eq(labels.data.view_as(pred)).sum()
 
-    avg_loss /= len(data_test)
-    acc = float(total_correct) / len(data_test)
+    avg_loss /= len(data_train_loader)
+    acc = float(total_correct) / len(data_test_loader)
     if acc_best < acc:
         acc_best = acc
     print('Test Avg. Loss: %f, Accuracy: %f' % (avg_loss.data.item(), acc))
