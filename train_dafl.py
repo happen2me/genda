@@ -116,7 +116,7 @@ def run():
             loss_information_entropy = (softmax_o_T * torch.log(softmax_o_T)).sum()
             loss_kd = kdloss(net(gen_imgs.detach()), outputs_T.detach())
             loss = loss_one_hot * opt.oh + loss_activation * opt.a + loss_kd * opt.kd + loss_information_entropy * opt.ie
-            loss.sum().backward()
+            loss.backward()
             optimizer_G.step()
             optimizer_S.step()
             if i == 1:
