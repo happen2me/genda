@@ -82,8 +82,8 @@ def test():
             pred = output.data.max(1)[1]
             total_correct += pred.eq(labels.data.view_as(pred)).sum()
 
-    avg_loss /= len(data_train_loader)
-    acc = float(total_correct) / len(data_test_loader)
+    avg_loss /= len(data_train_loader.dataset)
+    acc = float(total_correct) / len(data_test_loader.dataset)
     if acc_best < acc:
         acc_best = acc
     print('Test Avg. Loss: %f, Accuracy: %f' % (avg_loss.data.item(), acc))
