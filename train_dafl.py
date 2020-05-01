@@ -19,14 +19,14 @@ parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST','ci
 parser.add_argument('--data', type=str, default='cache/data/')
 parser.add_argument('--teacher_dir', type=str, default='cache/models/')
 parser.add_argument('--n_epochs', type=int, default=200, help='number of epochs of training')
-parser.add_argument('--batch_size', type=int, default=2048, help='size of the batches')
+parser.add_argument('--batch_size', type=int, default=512, help='size of the batches')
 parser.add_argument('--lr_G', type=float, default=0.2, help='learning rate')
 parser.add_argument('--lr_S', type=float, default=2e-3, help='learning rate')
 parser.add_argument('--latent_dim', type=int, default=100, help='dimensionality of the latent space')
 parser.add_argument('--img_size', type=int, default=32, help='size of each image dimension')
 parser.add_argument('--channels', type=int, default=1, help='number of image channels')
-parser.add_argument('--oh', type=float, default=10, help='one hot loss')
-parser.add_argument('--ie', type=float, default=10, help='information entropy loss')
+parser.add_argument('--oh', type=float, default=1, help='one hot loss')
+parser.add_argument('--ie', type=float, default=15, help='information entropy loss')
 parser.add_argument('--a', type=float, default=0.1, help='activation loss')
 parser.add_argument('--kd', type=float, default=2, help='knowledge distillation loss')
 parser.add_argument('--output_dir', type=str, default='cache/models/')
@@ -108,20 +108,19 @@ def run():
             optimizer_S.zero_grad()
             gen_imgs = generator(z)
             outputs_T, features_T = teacher(gen_imgs, out_feature=True)
-            # pred = outputs_T.data.max(1)[1]
+            pred = outputs_T.data.max(1)[1]
             loss_activation = -features_T.abs().mean()
-            # loss_one_hot = criterion(outputs_T,pred)
-            loss_condition = criterion(outputs_T, labels.view(opt.batch_size))
+            loss_one_hot = criterion(outputs_T,pred)
+            # loss_condition = criterion(outputs_T, labels.view(opt.batch_size))
             softmax_o_T = torch.nn.functional.softmax(outputs_T, dim = 1).mean(dim = 0)
-            # loss_information_entropy = (softmax_o_T * torch.log(softmax_o_T)).sum()
+            loss_information_entropy = (softmax_o_T * torch.log(softmax_o_T)).sum()
             loss_kd = kdloss(net(gen_imgs.detach()), outputs_T.detach())
-            loss = loss_condition * opt.oh + loss_activation * opt.a + loss_kd * opt.kd
+            loss = loss_one_hot * opt.oh + loss_activation * opt.a + loss_kd * opt.kd + loss_information_entropy * opt.ie
             loss.sum().backward()
             optimizer_G.step()
             optimizer_S.step()
             if i == 1:
-                print ("[Epoch %d/%d] [loss_condition: %f] [loss_a: %f] [loss_kd: %f]" % (epoch, opt.n_epochs,loss_condition.item(), loss_activation.item(), loss_kd.item()))
-
+                print("[Epoch %d/%d] [loss_oh: %f] [loss_a: %f] [loss_kd: %f] [loss_ie %f]" % (epoch, opt.n_epochs, loss_one_hot.item(), loss_activation.item(), loss_kd.item(), loss_information_entropy.item()))
         accr = eval_model(net, data_test_loader)
 
         if accr > accr_best:
