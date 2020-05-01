@@ -26,9 +26,9 @@ parser.add_argument('--c_learning_rate', type=float, default=1e-4, help='c learn
 parser.add_argument('--d_learning_rate', type=float, default=1e-4, help='d learning rate')
 parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam')
 parser.add_argument('--beta2', type=float, default=0.9, help='beta2 for adam')
-parser.add_argument('--log_step', type=int, default=100, help='interval for logging')
+parser.add_argument('--log_step', type=int, default=5, help='interval for logging')
 parser.add_argument('--save_step', type=int, default=100, help='interval for saving the model')
-parser.add_argument('--eval_step', type=int, default=20, help='interval for testinh the model')
+parser.add_argument('--eval_step', type=int, default=1, help='interval for testinh the model')
 opt = parser.parse_args()
 
 
@@ -149,7 +149,7 @@ def train_tgt(src_encoder, tgt_encoder, critic,
                 "tgt_encoder.pt"))
 
         if epoch % opt.eval_step == 0:
-            eval_encoder_and_classifier(src_encoder, classifier, tgt_data_loader)
+            print('epoch ', epoch, ':')
             eval_encoder_and_classifier(tgt_encoder, classifier, tgt_data_loader)
 
     return tgt_encoder
