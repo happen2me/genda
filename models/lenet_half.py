@@ -1,7 +1,7 @@
 import torch.nn as nn
 from collections import OrderedDict
 
-dropout_rate = 0.1
+dropout_rate = 0.15
 
 class C1(nn.Module):
     def __init__(self):

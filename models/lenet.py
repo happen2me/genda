@@ -3,7 +3,7 @@ import torch.nn as nn
 from collections import OrderedDict
 
 DEBUG = False
-dropout_rate = 0.1
+dropout_rate = 0.15
 
 
 def print_detail(layer, img):
