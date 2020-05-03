@@ -244,3 +244,4 @@ cache/
 test.py
 .idea
 *.out
+visual.py
