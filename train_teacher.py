@@ -1,5 +1,6 @@
 import os
 from models.lenet import LeNet5
+from models.mlp import Mlp
 import torch
 from torchvision.datasets.mnist import MNIST
 import torchvision.transforms as transforms
@@ -27,7 +28,7 @@ acc_best = 0
 data_train_loader = get_mnist(True, args.batch_size)
 data_test_loader = get_mnist(False, args.batch_size)
 
-net = LeNet5().to(device)
+net = Mlp().to(device)
 criterion = torch.nn.CrossEntropyLoss().to(device)
 optimizer = torch.optim.Adam(net.parameters(), lr=0.001)
 
