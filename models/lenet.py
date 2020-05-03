@@ -118,40 +118,18 @@ class LeNet5(nn.Module):
         super(LeNet5, self).__init__()
 
         self.c1 = C1()
-        self.c2_1 = C2()
-        self.c2_2 = C2()
+        self.c2 = C2()
         self.c3 = C3()
         self.f4 = F4()
         self.f5_linear = F5_linear()
         self.f5_softmax = F5_softmax()
 
-    # def forward(self, img):
-    #     output = self.c1(img)
-    #
-    #     x = self.c2_1(output)
-    #     output = self.c2_2(output)
-    #
-    #     output += x
-    #
-    #     output = self.c3(output)
-    #     output = output.view(img.size(0), -1)
-    #     feature = output.view(-1, 120)
-    #     output = self.f4(output)
-    #     output = self.f5_linear(output)
-    #     output = self.f5_softmax(output)
-    #     return output
-
     def forward(self, img, out_feature=False):
         output = self.c1(img)
-
-        x = self.c2_1(output)
-        output = self.c2_2(output)
-
-        output += x
-
+        output = self.c2(output)
         output = self.c3(output)
-        output = output.view(img.size(0), -1)
-        feature = output.view(-1, 120)
+        feature = output
+        # output = output.view(img.size(0), -1)
         output = self.f4(output)
         output = self.f5_linear(output)
         output = self.f5_softmax(output)
@@ -200,19 +178,13 @@ class LeNet5Encoder(nn.Module):
         super(LeNet5Encoder, self).__init__()
 
         self.c1 = C1()
-        self.c2_1 = C2()
-        self.c2_2 = C2()
+        self.c2 = C2()
         self.c3 = C3()
         self.f4 = F4()
 
     def forward(self, img):
         output = self.c1(img)
-
-        x = self.c2_1(output)
-        output = self.c2_2(output)
-
-        output += x
-
+        output = self.c2(output)
         output = self.c3(output)
         output = output.view(img.size(0), -1)
         output = self.f4(output)

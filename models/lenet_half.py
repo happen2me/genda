@@ -83,24 +83,23 @@ class LeNet5Half(nn.Module):
         super(LeNet5Half, self).__init__()
 
         self.c1 = C1()
-        self.c2_1 = C2()
-        self.c2_2 = C2()
+        self.c2 = C2()
         self.c3 = C3()
         self.f4 = F4()
         self.f5 = F5()
 
-    def forward(self, img):
+    def forward(self, img, out_feature=False):
         output = self.c1(img)
-
-        x = self.c2_1(output)
-        output = self.c2_2(output)
-
-        output += x
-
+        output = self.c2(output)
         output = self.c3(output)
+        if out_feature:
+            feature = output
         output = output.view(img.size(0), -1)
         output = self.f4(output)
+        feature = output
         output = self.f5(output)
+        if out_feature:
+            return output, feature
         return output
 
 
@@ -113,19 +112,13 @@ class LeNet5HalfEncoder(nn.Module):
         super(LeNet5HalfEncoder, self).__init__()
 
         self.c1 = C1()
-        self.c2_1 = C2()
-        self.c2_2 = C2()
+        self.c2 = C2()
         self.c3 = C3()
         self.f4 = F4()
 
     def forward(self, img):
         output = self.c1(img)
-
-        x = self.c2_1(output)
-        output = self.c2_2(output)
-
-        output += x
-
+        output = self.c2(output)
         output = self.c3(output)
         output = output.view(img.size(0), -1)
         output = self.f4(output)
