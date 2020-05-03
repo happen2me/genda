@@ -1,6 +1,7 @@
 import torch.nn as nn
 from collections import OrderedDict
 
+dropout_rate = 0.1
 
 class C1(nn.Module):
     def __init__(self):
@@ -9,6 +10,7 @@ class C1(nn.Module):
         self.c1 = nn.Sequential(OrderedDict([
             ('c1', nn.Conv2d(1, 3, kernel_size=(5, 5))),
             ('relu1', nn.ReLU()),
+            ('d1', nn.Dropout2d(p=dropout_rate)),
             ('s1', nn.MaxPool2d(kernel_size=(2, 2), stride=2))
         ]))
 
@@ -24,6 +26,7 @@ class C2(nn.Module):
         self.c2 = nn.Sequential(OrderedDict([
             ('c2', nn.Conv2d(3, 8, kernel_size=(5, 5))),
             ('relu2', nn.ReLU()),
+            ('d2', nn.Dropout2d(p=dropout_rate)),
             ('s2', nn.MaxPool2d(kernel_size=(2, 2), stride=2))
         ]))
 
@@ -38,7 +41,8 @@ class C3(nn.Module):
         # Layer 3: Fully Connected. Input = 200. Output = 120.
         self.c3 = nn.Sequential(OrderedDict([
             ('c3', nn.Conv2d(8, 60, kernel_size=(5, 5))),
-            ('relu3', nn.ReLU())
+            ('relu3', nn.ReLU()),
+            ('d3', nn.Dropout2d(p=dropout_rate))
         ]))
 
     def forward(self, img):
@@ -52,7 +56,8 @@ class F4(nn.Module):
         # Layer 4: Fully Connected. Input = 120. Output = 84.
         self.f4 = nn.Sequential(OrderedDict([
             ('f4', nn.Linear(60, 42)),
-            ('relu4', nn.ReLU())
+            ('relu4', nn.ReLU()),
+            ('d4', nn.Dropout(p=dropout_rate))
         ]))
 
     def forward(self, img):
@@ -96,7 +101,6 @@ class LeNet5Half(nn.Module):
             feature = output
         output = output.view(img.size(0), -1)
         output = self.f4(output)
-        feature = output
         output = self.f5(output)
         if out_feature:
             return output, feature
