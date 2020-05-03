@@ -1,7 +1,7 @@
 import torch.nn as nn
 from collections import OrderedDict
 
-dropout_rate = 0.15
+dropout_rate = 0.0
 
 class C1(nn.Module):
     def __init__(self):
@@ -97,8 +97,7 @@ class LeNet5Half(nn.Module):
         output = self.c1(img)
         output = self.c2(output)
         output = self.c3(output)
-        if out_feature:
-            feature = output
+        feature = output.view(-1, 60)
         output = output.view(img.size(0), -1)
         output = self.f4(output)
         output = self.f5(output)
