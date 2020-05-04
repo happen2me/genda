@@ -21,9 +21,13 @@ class GenImgs(Dataset):
 
     def __getitem__(self, index):
         rand = torch.randn(1, self.latent_dim).to(device)
-        img = self.generator(rand)
-        label = torch.squeeze(self.classifier(img), dim=0)
-        label = torch.argmax(label, dim=0)
+        label = torch.LongTensor(1, 1).random_() % 10
+        label_onehot = torch.FloatTensor(1, 10)
+        label_onehot.zero_()
+        label_onehot.scatter_(1, label, 1)
+        label_onehot = label_onehot.to(device)
+        label = label.squeeze(dim=1).item()
+        img = self.generator(torch.cat((rand, label_onehot), dim=1))
         img = torch.squeeze(img, dim=0)
         return img.detach(), label
 

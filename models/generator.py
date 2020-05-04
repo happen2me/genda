@@ -14,7 +14,7 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
         self.opt = GeneratorParams()
         self.init_size = self.opt.img_size // 4
-        self.l1 = nn.Sequential(nn.Linear(self.opt.latent_dim, 128*self.init_size**2))
+        self.l1 = nn.Sequential(nn.Linear(self.opt.latent_dim + self.opt.class_num, 128*self.init_size**2))
 
         self.conv_blocks0 = nn.Sequential(
             nn.BatchNorm2d(128),
