@@ -40,8 +40,8 @@ def pre_train_critic(src_encoder, critic, src_dataloader, tgt_dataloader):
                                   lr=opt.d_learning_rate,
                                   betas=(opt.beta1, opt.beta2))
 
-    data_zip = enumerate(zip(src_dataloader, tgt_dataloader))
     for epoch in range(num_epoch):
+        data_zip = enumerate(zip(src_dataloader, tgt_dataloader))
         for step, ((images_src, _), (images_tgt, _)) in data_zip:
             # make images variable
             images_src = images_src.to(device)
