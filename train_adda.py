@@ -32,6 +32,49 @@ parser.add_argument('--eval_step', type=int, default=1, help='interval for testi
 opt = parser.parse_args()
 
 
+def pre_train_critic(src_encoder, critic, src_dataloader, tgt_dataloader):
+    num_epoch = 10
+    criterion = nn.CrossEntropyLoss()
+    optimizer_critic = optim.Adam(critic.parameters(),
+                                  lr=opt.d_learning_rate,
+                                  betas=(opt.beta1, opt.beta2))
+
+    data_zip = enumerate(zip(src_dataloader, tgt_dataloader))
+    for epoch in range(num_epoch):
+        for step, ((images_src, _), (images_tgt, _)) in data_zip:
+            # make images variable
+            images_src = images_src.to(device)
+            images_tgt = images_tgt.to(device)
+
+            # zero gradients for optimizer
+            optimizer_critic.zero_grad()
+
+            # extract and concat features
+            feat_src = src_encoder(images_src)
+            feat_tgt = src_encoder(images_tgt)
+            feat_concat = torch.cat((feat_src, feat_tgt), 0).detach().to(device)
+
+            # predict on discriminator
+            pred_concat = critic(feat_concat)
+
+            # prepare real and fake label, src is 1 and tgt is 0
+            label_src = torch.ones(feat_src.size(0)).long().to(device)
+            label_tgt = torch.zeros(feat_tgt.size(0)).long().to(device)
+            label_concat = torch.cat((label_src, label_tgt), 0)
+
+            # compute loss for critic
+            loss_critic = criterion(pred_concat, label_concat)
+            loss_critic.backward()
+
+            # optimize critic
+            optimizer_critic.step()
+
+            pred_cls = torch.squeeze(pred_concat.max(1)[1])
+            acc = (pred_cls == label_concat).float().mean()
+            print('[pre-train critic]epoch {}:'.format(epoch), 'step {}:'.format(step), 'acc: {}'.format(acc))
+    return critic
+
+
 def train_tgt(src_encoder, tgt_encoder, critic,
               src_data_loader, tgt_data_loader, classifier):
     """Train encoder for target domain."""
@@ -71,7 +114,6 @@ def train_tgt(src_encoder, tgt_encoder, critic,
             # make images variable
             images_src = images_src.to(device)
             images_tgt = images_tgt.to(device)
-
 
             # zero gradients for optimizer
             optimizer_critic.zero_grad()
@@ -163,6 +205,8 @@ def run():
     src_data_loader = get_genimg(True, opt.batch_size)
     tgt_data_loader = get_usps(True, opt.batch_size)
 
+    for p in critic.parameters():
+        p.requires_grad = True
     for p in src_encoder.parameters():
         p.requires_grad = False
     for p in tgt_encoder.parameters():
@@ -170,9 +214,9 @@ def run():
     for p in classifier.parameters():
         p.requires_grad = False
 
+    critic = pre_train_critic(src_encoder, critic, src_data_loader, tgt_data_loader)
     train_tgt(src_encoder, tgt_encoder, critic,
               src_data_loader, tgt_data_loader, classifier)
-
     eval_encoder_and_classifier(tgt_encoder, classifier, tgt_data_loader)
 
 
