@@ -7,8 +7,8 @@ from models.lenet import LeNet5
 from models.lenet_half import LeNet5Half
 from utils import partial_load
 
-generator_path = 'cache/models/generator_with_do.pt'
-classifier_path = 'cache/models/teacher_with_do.pt'
+generator_path = 'cache/models/generator.pt'
+classifier_path = 'cache/models/student.pt'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -17,7 +17,7 @@ class GenImgs(Dataset):
         self.length = length
         self.latent_dim = latent_dim
         self.generator = partial_load(Generator, generator_path)
-        self.classifier = partial_load(LeNet5, classifier_path)
+        self.classifier = partial_load(LeNet5Half, classifier_path)
 
     def __getitem__(self, index):
         rand = torch.randn(1, self.latent_dim).to(device)
