@@ -4,10 +4,11 @@ import torch
 from torch.utils.data.sampler import SubsetRandomSampler
 from models.generator import Generator
 from models.lenet import LeNet5
+from models.lenet_half import LeNet5Half
 from utils import partial_load
 
-generator_path = "cache/models/generator.pt"
-classifier_path = 'cache/models/teacher.pt'
+generator_path = 'cache/models/generator_with_do.pt'
+classifier_path = 'cache/models/teacher_with_do.pt'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -16,16 +17,13 @@ class GenImgs(Dataset):
         self.length = length
         self.latent_dim = latent_dim
         self.generator = partial_load(Generator, generator_path)
+        self.classifier = partial_load(LeNet5, classifier_path)
 
     def __getitem__(self, index):
         rand = torch.randn(1, self.latent_dim).to(device)
-        label = torch.LongTensor(1, 1).random_() % 10
-        label_onehot = torch.FloatTensor(1, 10)
-        label_onehot.zero_()
-        label_onehot.scatter_(1, label, 1)
-        label_onehot = label_onehot.to(device)
-        label = label.squeeze(dim=1).item()
-        img = self.generator(torch.cat((rand, label_onehot), dim=1))
+        img = self.generator(rand)
+        label = torch.squeeze(self.classifier(img), dim=0)
+        label = torch.argmax(label, dim=0)
         img = torch.squeeze(img, dim=0)
         return img.detach(), label
 
