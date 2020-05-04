@@ -140,7 +140,7 @@ def train_tgt(src_encoder, tgt_encoder, critic,
             optimizer_critic.step()
 
             pred_cls = torch.squeeze(pred_concat.max(1)[1])
-            acc = (pred_cls == label_concat).float().mean()
+            domain_acc = (pred_cls == label_concat).float().mean()
 
             ############################
             # 2.2 train target encoder #
@@ -171,14 +171,14 @@ def train_tgt(src_encoder, tgt_encoder, critic,
             #######################
             if ((step + 1) % opt.log_step == 0):
                 print("Epoch [{}/{}] Step [{}/{}]:"
-                      "d_loss={:.5f} g_loss={:.5f} acc={:.5f}"
+                      "d_loss={:.5f} g_loss={:.5f} d_acc={:.5f}"
                       .format(epoch + 1,
                               opt.num_epochs,
                               step + 1,
                               len_data_loader,
                               loss_critic.data.item(),
                               loss_tgt.data.item(),
-                              acc.data.item()))
+                              domain_acc.data.item()))
 
         #############################
         # 2.4 save model parameters #
