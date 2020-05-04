@@ -33,6 +33,7 @@ opt = parser.parse_args()
 
 
 def pre_train_critic(src_encoder, critic, src_dataloader, tgt_dataloader):
+    critic = critic.to(device)
     num_epoch = 10
     criterion = nn.CrossEntropyLoss()
     optimizer_critic = optim.Adam(critic.parameters(),
