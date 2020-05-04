@@ -94,16 +94,6 @@ def run():
         for i in range(120):
             net.train()
             z = torch.randn(opt.batch_size, opt.latent_dim).to(device)
-
-            # generate random labels
-            labels = torch.LongTensor(opt.batch_size, 1).random_() % opt.num_classes
-            labels_onehot = torch.FloatTensor(opt.batch_size, opt.num_classes)
-            labels_onehot.zero_()
-            labels_onehot.scatter_(1, labels, 1)
-            labels = labels.to(device)
-            labels_onehot = labels_onehot.to(device)
-            z = torch.cat((z, labels_onehot), dim=1)
-
             optimizer_G.zero_grad()
             optimizer_S.zero_grad()
             gen_imgs = generator(z)
