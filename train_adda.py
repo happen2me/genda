@@ -5,6 +5,7 @@ import torch
 import torch.optim as optim
 from torch import nn
 
+from models.lenet import LeNet5
 from models.lenet_half import LeNet5HalfEncoder, LeNet5HalfClassifier
 from models.critic import Critic
 from datasets.genimg import get_genimg
@@ -23,14 +24,17 @@ parser.add_argument('--model_root', type=str, default='cache/models/', help='int
 parser.add_argument('--num_epochs', type=int, default=2000, help='number of epochs of training')
 parser.add_argument('--batch_size', type=int, default=512, help='size of the batches')
 parser.add_argument('--c_learning_rate', type=float, default=1e-4, help='c learning rate')
-parser.add_argument('--d_learning_rate', type=float, default=1e-4, help='d learning rate')
+parser.add_argument('--d_learning_rate', type=float, default=1e-3, help='d learning rate')
 parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam')
 parser.add_argument('--beta2', type=float, default=0.9, help='beta2 for adam')
 parser.add_argument('--log_step', type=int, default=5, help='interval for logging')
 parser.add_argument('--save_step', type=int, default=100, help='interval for saving the model')
 parser.add_argument('--eval_step', type=int, default=1, help='interval for testinh the model')
+parser.add_argument('--img_opt_step', type=int, default=200, help='img optimization steps')
+parser.add_argument('--lr_O', type=float, default=1e-2, help='img optimization steps')
 opt = parser.parse_args()
 
+teacher = partial_load(LeNet5, teacher_path)
 
 def pre_train_critic(src_encoder, critic, src_dataloader, tgt_dataloader):
     critic = critic.to(device)
@@ -104,23 +108,36 @@ def train_tgt(src_encoder, tgt_encoder, critic,
     ####################
 
     for epoch in range(opt.num_epochs):
-        # zip source and target data pair
-
-        data_zip = enumerate(zip(src_data_loader, tgt_data_loader))
-        for step, ((images_src, _), (images_tgt, _)) in data_zip:
+        for step, (images_tgt, _) in enumerate(tgt_data_loader):
             ###########################
             # 2.1 train discriminator #
             ###########################
 
             # make images variable
-            images_src = images_src.to(device)
             images_tgt = images_tgt.to(device)
+
+            # initiate img with target data
+            opt_imgs = images_tgt.clone().to(device)
+            opt_imgs.requires_grad = True
+            optimizer_img = torch.optim.Adam([opt_imgs], opt.lr_O)
+
+            # optimize img
+            for step in range(opt.img_opt_step):
+                output, feature = teacher(opt_imgs, out_feature=True)
+                loss_oh = criterion(output, output.data.max(1)[1])
+                loss_act = -feature.abs().mean()
+                softmax_o = torch.nn.functional.softmax(output, dim=1).mean(dim=0)
+                loss_ie = (softmax_o * torch.log(softmax_o)).sum()
+                loss = loss_oh * opt.oh + loss_act * opt.a + loss_ie * opt.ie
+                optimizer_img.zero_grad()
+                loss.backward()
+                optimizer_img.step()
 
             # zero gradients for optimizer
             optimizer_critic.zero_grad()
 
             # extract and concat features
-            feat_src = src_encoder(images_src)
+            feat_src = src_encoder(opt_imgs)
             feat_tgt = tgt_encoder(images_tgt)
             feat_concat = torch.cat((feat_src, feat_tgt), 0).detach().to(device)
 
@@ -215,7 +232,6 @@ def run():
     for p in classifier.parameters():
         p.requires_grad = False
 
-    critic = pre_train_critic(src_encoder, critic, src_data_loader, tgt_data_loader)
     train_tgt(src_encoder, tgt_encoder, critic,
               src_data_loader, tgt_data_loader, classifier)
     eval_encoder_and_classifier(tgt_encoder, classifier, tgt_data_loader)
