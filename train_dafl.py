@@ -32,7 +32,7 @@ parser.add_argument('--a', type=float, default=0.1, help='activation loss')
 parser.add_argument('--kd', type=float, default=1, help='knowledge distillation loss')
 parser.add_argument('--output_dir', type=str, default='cache/models/')
 parser.add_argument('--num_classes', type=int, help='num of classes in the dataset', default=10)
-parser.add_argument('--img_opt_step', type=int, default=1000, help='img optimization steps')
+parser.add_argument('--img_opt_step', type=int, default=200, help='img optimization steps')
 opt = parser.parse_args()
 
 img_shape = (opt.channels, opt.img_size, opt.img_size)
