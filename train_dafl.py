@@ -29,7 +29,7 @@ parser.add_argument('--latent_dim', type=int, default=100, help='dimensionality 
 parser.add_argument('--img_size', type=int, default=32, help='size of each image dimension')
 parser.add_argument('--channels', type=int, default=1, help='number of image channels')
 parser.add_argument('--oh', type=float, default=1, help='one hot loss')
-parser.add_argument('--ie', type=float, default=15, help='information entropy loss')
+parser.add_argument('--ie', type=float, default=1, help='information entropy loss')
 parser.add_argument('--a', type=float, default=0.05, help='activation loss')
 parser.add_argument('--kd', type=float, default=1, help='knowledge distillation loss')
 parser.add_argument('--output_dir', type=str, default='cache/models/')
@@ -67,7 +67,9 @@ def generate_src(teacher, tgt_loader):
             output, feature = teacher(opt_imgs, out_feature=True)
             loss_oh = criterion(output, output.data.max(1)[1])
             loss_act = -feature.abs().mean()
-            loss = loss_oh * opt.oh + loss_act * opt.a
+            softmax_o = torch.nn.functional.softmax(output, dim=1).mean(dim=0)
+            loss_ie = (softmax_o * torch.log(softmax_o)).sum()
+            loss = loss_oh * opt.oh + loss_act * opt.a + loss_ie * opt.ie
             optimizer_img.zero_grad()
             loss.backward()
             optimizer_img.step()
