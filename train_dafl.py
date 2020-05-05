@@ -6,6 +6,7 @@ import torch.nn.functional as F
 import torch
 import torchvision.transforms as transforms
 from torchvision.datasets.mnist import MNIST
+from torch.utils.data import  TensorDataset
 
 from models.lenet_half import LeNet5Half
 from models.generator import Generator
@@ -37,6 +38,7 @@ opt = parser.parse_args()
 
 img_shape = (opt.channels, opt.img_size, opt.img_size)
 teacher_path = opt.output_dir + 'teacher.pt'
+dataset_save_path = 'cache/data/adapted_usps/adapted_usps.pt'
 
 cuda = True
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -50,6 +52,31 @@ def kdloss(y, teacher_scores):
     q = F.softmax(teacher_scores, dim=1)
     l_kl = F.kl_div(p, q, reduction='sum') / y.shape[0]
     return l_kl
+
+
+def generate_src(teacher, tgt_loader):
+    criterion = torch.nn.CrossEntropyLoss().to(device)
+    img_buffer = []
+    label_buffer = []
+    for i, (tgt_imgs, _) in enumerate(tgt_loader):
+        opt_imgs = tgt_imgs.clone().to(device)
+        opt_imgs.requires_grad = True
+        optimizer_img = torch.optim.Adam([opt_imgs], opt.lr_O)
+        for step in range(opt.img_opt_step):
+            output, feature = teacher(opt_imgs, out_feature=True)
+            loss_oh = criterion(output, output.data.max(1)[1])
+            loss_act = -feature.abs().mean()
+            loss = loss_oh * opt.oh + loss_act * opt.a
+            optimizer_img.zero_grad()
+            loss.backward()
+            optimizer_img.step()
+        output = teacher(opt_imgs)
+        img_buffer.append(opt_imgs)
+        label_buffer.append(output.data.max(1)[1])
+    imgs = torch.cat(img_buffer, dim=0)
+    labels = torch.cat(label_buffer, dim=0)
+    dataset = TensorDataset(imgs, labels)
+    torch.save(dataset, dataset_save_path)
 
 
 def run():
@@ -67,6 +94,14 @@ def run():
     net = nn.DataParallel(net)
     data_test_loader = get_mnist(True, batch_size=opt.batch_size)
     tgt_loader = get_usps(True, batch_size=opt.batch_size)
+
+    # generate source first
+    generate_src(teacher, tgt_loader)
+
+    data_adapt = torch.load(dataset_save_path)
+    data_adapt_loader = DataLoader(data_adapt, batch_size=opt.batch_size, num_workers=8)
+
+
 
     # Optimizers
     optimizer_student = torch.optim.Adam(net.parameters(), lr=opt.lr_S)
@@ -91,25 +126,9 @@ def run():
         total_correct = 0
         avg_loss = 0.0
 
-        for i, (tgt_imgs, _) in enumerate(tgt_loader):
+        for i, (opt_imgs, _) in enumerate(data_adapt_loader):
             net.train()
             optimizer_student.zero_grad()
-
-            # initiate img with target data
-            opt_imgs = tgt_imgs.clone().to(device)
-            opt_imgs.requires_grad = True
-            optimizer_img = torch.optim.Adam([opt_imgs], opt.lr_O)
-
-            # optimize img
-            for step in range(opt.img_opt_step):
-                output, feature = teacher(opt_imgs, out_feature=True)
-                loss_oh = criterion(output, output.data.max(1)[1])
-                loss_act = -feature.abs().mean()
-                loss = loss_oh * opt.oh + loss_act * opt.a
-                optimizer_img.zero_grad()
-                loss.backward()
-                optimizer_img.step()
-
             output = teacher(opt_imgs)
             loss_kd = kdloss(net(opt_imgs), output.detach())
             loss_kd.backward()
