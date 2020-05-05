@@ -10,6 +10,7 @@ from torchvision.datasets.mnist import MNIST
 from models.lenet_half import LeNet5Half
 from models.generator import Generator
 from models.lenet import LeNet5
+from models.critic import Critic
 from datasets.mnist import get_mnist
 from datasets.usps import get_usps
 from utils import partial_load, eval_model
@@ -29,6 +30,7 @@ parser.add_argument('--oh', type=float, default=1, help='one hot loss')
 parser.add_argument('--ie', type=float, default=15, help='information entropy loss')
 parser.add_argument('--a', type=float, default=0.1, help='activation loss')
 parser.add_argument('--kd', type=float, default=1, help='knowledge distillation loss')
+parser.add_argument('--d_stu', type=float, default=1, help='domain loss for student')
 parser.add_argument('--output_dir', type=str, default='cache/models/')
 parser.add_argument('--num_classes', type=int, help='num of classes in the dataset', default=10)
 opt = parser.parse_args()
@@ -37,6 +39,7 @@ img_shape = (opt.channels, opt.img_size, opt.img_size)
 teacher_path = opt.output_dir + 'teacher.pt'
 
 cuda = True
+DEBUG = True
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 accr = 0
@@ -52,6 +55,7 @@ def kdloss(y, teacher_scores):
 
 def run():
     generator = Generator().to(device)
+    critic = Critic(84, 140, 2).to(device)
     teacher = partial_load(LeNet5, teacher_path)
     teacher.eval()
     # freeze teacher
@@ -65,11 +69,14 @@ def run():
     # Configure data loader
     net = LeNet5Half().to(device)
     net = nn.DataParallel(net)
-    data_test_loader = get_mnist(True, batch_size=opt.batch_size)
+    src_test_loader = get_mnist(True, batch_size=opt.batch_size)
+    tgt_loader = get_usps(True, batch_size=opt.batch_size)
+
 
     # Optimizers
     optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr_G)
     optimizer_S = torch.optim.Adam(net.parameters(), lr=opt.lr_S)
+    optimizer_C = torch.optim.Adam(critic.parameters(), lr=opt.lr_S)
 
     def adjust_learning_rate(optimizer, epoch, learing_rate):
         if epoch < 800:
@@ -91,31 +98,52 @@ def run():
         total_correct = 0
         avg_loss = 0.0
 
-        for i in range(120):
+        #for i in range(120):
+        for i, (tgt_imgs, _) in enumerate(tgt_loader):
             net.train()
-            z = torch.randn(opt.batch_size, opt.latent_dim).to(device)
+            z = torch.randn(tgt_imgs.shape[0], opt.latent_dim).to(device)
             optimizer_G.zero_grad()
             optimizer_S.zero_grad()
             gen_imgs = generator(z)
-            outputs_T, features_T = teacher(gen_imgs, out_feature=True)
-            pred = outputs_T.data.max(1)[1]
-            loss_activation = -features_T.abs().mean()
-            loss_one_hot = criterion(outputs_T,pred)
+            outputs_gen, features_gen = teacher(gen_imgs, out_feature=True)
+
+            # optimize critic
+            outputs_tgt, features_tgt = teacher(tgt_imgs, out_feature=True)
+            # gens labels are 1, tgt labels are 0
+            d_features_concat = torch.cat((features_gen, features_tgt), 0).detach().to(device)
+            d_label_gen = torch.ones(features_gen.shape[0]).long().to(device)
+            d_label_tgt = torch.ones(features_tgt.shape[0]).long().to(device)
+            d_label_concat = torch.cat((d_label_gen, d_label_tgt), 0)
+            d_pred_concat = critic(d_features_concat)
+            loss_domain_critic = criterion(d_pred_concat, d_label_concat)
+            loss_domain_critic.backward()
+            optimizer_C.step()
+
+            # optimize student
+            d_pred_tgt = critic(features_tgt)
+            d_label_tgt_fake = torch.zeros(features_tgt.shape[0]).long().to(device)
+            loss_domain_student = criterion(d_pred_tgt, d_label_tgt_fake)
+
+            pred = outputs_gen.data.max(1)[1]
+            loss_activation = -features_gen.abs().mean()
+            loss_one_hot = criterion(outputs_gen,pred)
             # loss_condition = criterion(outputs_T, labels.view(opt.batch_size))
-            softmax_o_T = torch.nn.functional.softmax(outputs_T, dim = 1).mean(dim = 0)
+            softmax_o_T = torch.nn.functional.softmax(outputs_gen, dim = 1).mean(dim = 0)
             loss_information_entropy = (softmax_o_T * torch.log(softmax_o_T)).sum()
-            loss_kd = kdloss(net(gen_imgs.detach()), outputs_T.detach())
-            loss = loss_one_hot * opt.oh + loss_activation * opt.a + loss_kd * opt.kd + loss_information_entropy * opt.ie
+            loss_kd = kdloss(net(gen_imgs.detach()), outputs_gen.detach())
+            loss = loss_one_hot * opt.oh + loss_activation * opt.a + loss_kd * opt.kd + loss_information_entropy * opt.ie + loss_domain_student * opt.d_stu
             loss.backward()
             optimizer_G.step()
             optimizer_S.step()
             if i == 1:
-                print("[Epoch %d/%d] [loss_oh: %f] [loss_a: %f] [loss_kd: %f] [loss_ie %f]" % (epoch, opt.n_epochs, loss_one_hot.item(), loss_activation.item(), loss_kd.item(), loss_information_entropy.item()))
-        accr = eval_model(net, data_test_loader)
+                print("[Epoch %d/%d] [loss_oh: %f] [loss_a: %f] [loss_kd: %f] [loss_ie %f] [loss_ds %f] [loss_dc %f]" %
+                      (epoch, opt.n_epochs, loss_one_hot.item(), loss_activation.item(), loss_kd.item(),
+                       loss_information_entropy.item(), loss_domain_student.item(), loss_domain_critic.item()))
+        accr = eval_model(net, src_test_loader)
 
         if accr > accr_best:
-            torch.save(net.state_dict(), opt.output_dir + 'student.pt')
-            torch.save(generator.state_dict(), opt.output_dir + "generator.pt")
+            torch.save(net.state_dict(), opt.output_dir + 'student.pt.tmp')
+            torch.save(generator.state_dict(), opt.output_dir + "generator.pt.tmp")
             accr_best = accr
     print('best accuracy is {}'.format(accr_best))
 

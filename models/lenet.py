@@ -133,9 +133,9 @@ class LeNet5(nn.Module):
         output = self.c1(img)
         output = self.c2(output)
         output = self.c3(output)
-        feature = output.view(-1, 120)
         output = output.view(img.size(0), -1)
         output = self.f4(output)
+        feature = output.view(-1, 84)
         output = self.f5_linear(output)
         output = self.f5_softmax(output)
         if out_feature:
