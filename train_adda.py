@@ -27,7 +27,7 @@ parser.add_argument('--c_learning_rate', type=float, default=1e-4, help='c learn
 parser.add_argument('--d_learning_rate', type=float, default=1e-3, help='d learning rate')
 parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam')
 parser.add_argument('--beta2', type=float, default=0.9, help='beta2 for adam')
-parser.add_argument('--log_step', type=int, default=5, help='interval for logging')
+parser.add_argument('--log_step', type=int, default=20, help='interval for logging')
 parser.add_argument('--save_step', type=int, default=100, help='interval for saving the model')
 parser.add_argument('--eval_step', type=int, default=1, help='interval for testinh the model')
 parser.add_argument('--img_opt_step', type=int, default=200, help='img optimization steps')
@@ -109,7 +109,7 @@ def train_tgt(src_encoder, tgt_encoder, critic,
     ####################
     # 2. train network #
     ####################
-
+    best_acc = 0
     for epoch in range(opt.num_epochs):
         for step, (images_tgt, _) in enumerate(tgt_data_loader):
             ###########################
@@ -203,17 +203,19 @@ def train_tgt(src_encoder, tgt_encoder, critic,
         #############################
         # 2.4 save model parameters #
         #############################
-        if ((epoch + 1) % opt.save_step == 0):
-            torch.save(critic.state_dict(), os.path.join(
-                opt.model_root,
-                "critic.pt"))
-            torch.save(tgt_encoder.state_dict(), os.path.join(
-                opt.model_root,
-                "tgt_encoder.pt"))
+        # if ((epoch + 1) % opt.save_step == 0):
 
         if epoch % opt.eval_step == 0:
             print('epoch ', epoch, ':')
-            eval_encoder_and_classifier(tgt_encoder, classifier, tgt_data_loader)
+            acc = eval_encoder_and_classifier(tgt_encoder, classifier, tgt_data_loader)
+            if acc > best_acc:
+                best_acc = acc
+                torch.save(critic.state_dict(), os.path.join(
+                    opt.model_root,
+                    "critic.pt"))
+                torch.save(tgt_encoder.state_dict(), os.path.join(
+                    opt.model_root,
+                    "tgt_encoder.pt"))
 
     return tgt_encoder
 

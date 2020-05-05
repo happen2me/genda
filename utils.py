@@ -34,6 +34,7 @@ def eval_model(model, data_loader):
 
     return acc
 
+
 def eval_encoder_and_classifier(encoder, classifier, data_loader):
     class Full(nn.Module):
         def __init__(self):
@@ -47,7 +48,7 @@ def eval_encoder_and_classifier(encoder, classifier, data_loader):
             return output
 
     full = Full()
-    eval_model(full, data_loader)
+    return eval_model(full, data_loader)
 
 
 def alter_dict_key(state_dict):
