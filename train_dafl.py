@@ -111,9 +111,6 @@ def run():
                 optimizer_img.zero_grad()
                 loss.backward()
                 optimizer_img.step()
-                if step % 200 == 0:
-                    print("{opt imgs} [loss_oh: %f] [loss_a: %f]  [loss_ie %f]" %
-                          (loss_oh.item(), loss_act.item(), loss_ie.item()))
 
             output = teacher(opt_imgs)
             loss_kd = kdloss(net(opt_imgs), output.detach())
