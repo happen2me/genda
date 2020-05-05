@@ -22,6 +22,7 @@ parser.add_argument('--n_epochs', type=int, default=200, help='number of epochs 
 parser.add_argument('--batch_size', type=int, default=512, help='size of the batches')
 parser.add_argument('--lr_G', type=float, default=0.2, help='learning rate')
 parser.add_argument('--lr_S', type=float, default=2e-3, help='learning rate')
+parser.add_argument('--lr_O', type=float, default=1e-2, help='optimize target img learning rate')
 parser.add_argument('--latent_dim', type=int, default=100, help='dimensionality of the latent space')
 parser.add_argument('--img_size', type=int, default=32, help='size of each image dimension')
 parser.add_argument('--channels', type=int, default=1, help='number of image channels')
@@ -31,6 +32,7 @@ parser.add_argument('--a', type=float, default=0.1, help='activation loss')
 parser.add_argument('--kd', type=float, default=1, help='knowledge distillation loss')
 parser.add_argument('--output_dir', type=str, default='cache/models/')
 parser.add_argument('--num_classes', type=int, help='num of classes in the dataset', default=10)
+parser.add_argument('--img_opt_step', type=int, default=1000, help='img optimization steps')
 opt = parser.parse_args()
 
 img_shape = (opt.channels, opt.img_size, opt.img_size)
@@ -51,7 +53,6 @@ def kdloss(y, teacher_scores):
 
 
 def run():
-    generator = Generator().to(device)
     teacher = partial_load(LeNet5, teacher_path)
     teacher.eval()
     # freeze teacher
@@ -60,16 +61,15 @@ def run():
     criterion = torch.nn.CrossEntropyLoss().to(device)
 
     teacher = nn.DataParallel(teacher)
-    generator = nn.DataParallel(generator)
 
     # Configure data loader
     net = LeNet5Half().to(device)
     net = nn.DataParallel(net)
     data_test_loader = get_mnist(True, batch_size=opt.batch_size)
+    tgt_loader = get_usps(True, batch_size=opt.batch_size)
 
     # Optimizers
-    optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr_G)
-    optimizer_S = torch.optim.Adam(net.parameters(), lr=opt.lr_S)
+    optimizer_student = torch.optim.Adam(net.parameters(), lr=opt.lr_S)
 
     def adjust_learning_rate(optimizer, epoch, learing_rate):
         if epoch < 800:
@@ -91,31 +91,40 @@ def run():
         total_correct = 0
         avg_loss = 0.0
 
-        for i in range(120):
+        for i, (tgt_imgs, _) in enumerate(tgt_loader):
             net.train()
-            z = torch.randn(opt.batch_size, opt.latent_dim).to(device)
-            optimizer_G.zero_grad()
-            optimizer_S.zero_grad()
-            gen_imgs = generator(z)
-            outputs_T, features_T = teacher(gen_imgs, out_feature=True)
-            pred = outputs_T.data.max(1)[1]
-            loss_activation = -features_T.abs().mean()
-            loss_one_hot = criterion(outputs_T,pred)
-            # loss_condition = criterion(outputs_T, labels.view(opt.batch_size))
-            softmax_o_T = torch.nn.functional.softmax(outputs_T, dim = 1).mean(dim = 0)
-            loss_information_entropy = (softmax_o_T * torch.log(softmax_o_T)).sum()
-            loss_kd = kdloss(net(gen_imgs.detach()), outputs_T.detach())
-            loss = loss_one_hot * opt.oh + loss_activation * opt.a + loss_kd * opt.kd + loss_information_entropy * opt.ie
-            loss.backward()
-            optimizer_G.step()
-            optimizer_S.step()
+            optimizer_student.zero_grad()
+
+            # initiate img with target data
+            opt_imgs = tgt_imgs.clone().to(device)
+            opt_imgs.requires_grad = True
+            optimizer_img = torch.optim.Adam([opt_imgs], opt.lr_O)
+
+            # optimize img
+            for step in range(opt.img_opt_step):
+                output, feature = teacher(opt_imgs, output_feature=True)
+                loss_oh = criterion(output, output.data.max(1)[1])
+                loss_act = -feature.abs().mean()
+                softmax_o = torch.nn.functional.softmax(output, dim=1).mean(dim=0)
+                loss_ie = (softmax_o * torch.log(softmax_o)).sum()
+                loss = loss_oh * opt.oh + loss_act * opt.a + loss_ie * opt.ie
+                optimizer_img.zero_grad()
+                loss.backward()
+                optimizer_img.step()
+                if step % 200 == 0:
+                    print("{opt imgs} [loss_oh: %f] [loss_a: %f]  [loss_ie %f]" %
+                          (loss_oh.item(), loss_act.item(), loss_ie.item()))
+
+            output = teacher(opt_imgs)
+            loss_kd = kdloss(net(opt_imgs), output.detach())
+            loss_kd.backward()
+            optimizer_student.step()
             if i == 1:
-                print("[Epoch %d/%d] [loss_oh: %f] [loss_a: %f] [loss_kd: %f] [loss_ie %f]" % (epoch, opt.n_epochs, loss_one_hot.item(), loss_activation.item(), loss_kd.item(), loss_information_entropy.item()))
+                print("[Epoch %d/%d] [loss_kd: %f] " % (epoch, opt.n_epochs, loss_kd.item()))
         accr = eval_model(net, data_test_loader)
 
         if accr > accr_best:
             torch.save(net.state_dict(), opt.output_dir + 'student.pt')
-            torch.save(generator.state_dict(), opt.output_dir + "generator.pt")
             accr_best = accr
     print('best accuracy is {}'.format(accr_best))
 
