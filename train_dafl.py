@@ -19,7 +19,7 @@ parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST','ci
 parser.add_argument('--data', type=str, default='cache/data/')
 parser.add_argument('--teacher_dir', type=str, default='cache/models/')
 parser.add_argument('--n_epochs', type=int, default=200, help='number of epochs of training')
-parser.add_argument('--batch_size', type=int, default=512, help='size of the batches')
+parser.add_argument('--batch_size', type=int, default=1024, help='size of the batches')
 parser.add_argument('--lr_G', type=float, default=0.2, help='learning rate')
 parser.add_argument('--lr_S', type=float, default=2e-3, help='learning rate')
 parser.add_argument('--lr_O', type=float, default=1e-2, help='optimize target img learning rate')
@@ -102,7 +102,7 @@ def run():
 
             # optimize img
             for step in range(opt.img_opt_step):
-                output, feature = teacher(opt_imgs, output_feature=True)
+                output, feature = teacher(opt_imgs, out_feature=True)
                 loss_oh = criterion(output, output.data.max(1)[1])
                 loss_act = -feature.abs().mean()
                 softmax_o = torch.nn.functional.softmax(output, dim=1).mean(dim=0)
