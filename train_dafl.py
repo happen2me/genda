@@ -1,4 +1,5 @@
 import argparse
+from os import path
 import numpy as np
 from torch.utils.data import DataLoader
 import torch.nn as nn
@@ -96,10 +97,11 @@ def run():
     tgt_loader = get_usps(True, batch_size=opt.batch_size)
 
     # generate source first
-    generate_src(teacher, tgt_loader)
+    if not path.exists(dataset_save_path):
+        generate_src(teacher, tgt_loader)
 
     data_adapt = torch.load(dataset_save_path)
-    data_adapt_loader = DataLoader(data_adapt, batch_size=opt.batch_size, num_workers=8)
+    data_adapt_loader = DataLoader(data_adapt, batch_size=opt.batch_size, shuffle=True)
 
 
 
