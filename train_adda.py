@@ -32,6 +32,9 @@ parser.add_argument('--save_step', type=int, default=100, help='interval for sav
 parser.add_argument('--eval_step', type=int, default=1, help='interval for testinh the model')
 parser.add_argument('--img_opt_step', type=int, default=200, help='img optimization steps')
 parser.add_argument('--lr_O', type=float, default=1e-2, help='img optimization steps')
+parser.add_argument('--oh', type=float, default=1, help='img optimization steps')
+parser.add_argument('--a', type=float, default=0.03, help='img optimization steps')
+parser.add_argument('--ie', type=float, default=1, help='img optimization steps')
 opt = parser.parse_args()
 
 teacher = partial_load(LeNet5, teacher_path)
