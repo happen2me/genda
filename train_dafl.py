@@ -15,7 +15,8 @@ from datasets.usps import get_usps
 from utils import partial_load, eval_model
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST','cifar10','cifar100'])
+parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST','cifar10','cifar100', 'USPS'])
+parser.add_argument('--target', type=str, default='USPS', choices=['MNIST','cifar10','cifar100', 'USPS'])
 parser.add_argument('--data', type=str, default='cache/data/')
 parser.add_argument('--teacher_dir', type=str, default='cache/models/')
 parser.add_argument('--n_epochs', type=int, default=200, help='number of epochs of training')
@@ -36,7 +37,8 @@ parser.add_argument('--img_opt_step', type=int, default=200, help='img optimizat
 opt = parser.parse_args()
 
 img_shape = (opt.channels, opt.img_size, opt.img_size)
-teacher_path = opt.output_dir + 'teacher.pt'
+teacher_path = opt.output_dir + 'teacher_{}.pt'.format(opt.dataset)
+student_path = opt.output_dir + 'student_{}.pt'.format(opt.dataset)
 
 cuda = True
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -65,21 +67,18 @@ def run():
     # Configure data loader
     net = LeNet5Half().to(device)
     net = nn.DataParallel(net)
-    data_test_loader = get_mnist(True, batch_size=opt.batch_size)
-    tgt_loader = get_usps(True, batch_size=opt.batch_size)
+
+    if opt.dataset == 'MNIST':
+        data_test_loader = get_mnist(True, batch_size=opt.batch_size)
+    else:
+        data_test_loader = get_usps(True,  batch_size=opt.batch_size)
+    if opt.target == 'USPS':
+        tgt_loader = get_usps(True, batch_size=opt.batch_size)
+    else:
+        tgt_loader = get_mnist(True, batch_size=opt.batch_size)
 
     # Optimizers
     optimizer_student = torch.optim.Adam(net.parameters(), lr=opt.lr_S)
-
-    def adjust_learning_rate(optimizer, epoch, learing_rate):
-        if epoch < 800:
-            lr = learing_rate
-        elif epoch < 1600:
-            lr = 0.1*learing_rate
-        else:
-            lr = 0.01*learing_rate
-        for param_group in optimizer.param_groups:
-            param_group['lr'] = lr
 
     # ----------
     #  Training
@@ -87,11 +86,7 @@ def run():
 
     accr_best = 0
     for epoch in range(opt.n_epochs):
-
-        total_correct = 0
-        avg_loss = 0.0
-
-        for i, (tgt_imgs, _) in enumerate(tgt_loader):
+        for step, (tgt_imgs, _) in enumerate(tgt_loader):
             net.train()
             optimizer_student.zero_grad()
 
@@ -101,7 +96,7 @@ def run():
             optimizer_img = torch.optim.Adam([opt_imgs], opt.lr_O)
 
             # optimize img
-            for step in range(opt.img_opt_step):
+            for img_opt_step in range(opt.img_opt_step):
                 output, feature = teacher(opt_imgs, out_feature=True)
                 loss_oh = criterion(output, output.data.max(1)[1])
                 loss_act = -feature.abs().mean()
@@ -116,12 +111,12 @@ def run():
             loss_kd = kdloss(net(opt_imgs), output.detach())
             loss_kd.backward()
             optimizer_student.step()
-            if i == 1:
+            if step == 0:
                 print("[Epoch %d/%d] [loss_kd: %f] " % (epoch, opt.n_epochs, loss_kd.item()))
-        accr = eval_model(net, data_test_loader)
 
+        accr = eval_model(net, data_test_loader)
         if accr > accr_best:
-            torch.save(net.state_dict(), opt.output_dir + 'student.pt')
+            torch.save(net.state_dict(), student_path)
             accr_best = accr
     print('best accuracy is {}'.format(accr_best))
 
