@@ -212,9 +212,7 @@ def train_tgt(src_encoder, tgt_encoder, critic, tgt_data_loader, classifier):
                 torch.save(critic.state_dict(), os.path.join(
                     opt.model_root,
                     "critic.pt"))
-                torch.save(tgt_encoder.state_dict(), os.path.join(
-                    opt.model_root,
-                    "tgt_encoder.pt"))
+                torch.save(tgt_encoder.state_dict(), encoder_path)
 
     return tgt_encoder
 
