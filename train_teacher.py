@@ -12,24 +12,19 @@ from utils import eval_model
 parser = argparse.ArgumentParser(description='train-teacher-network')
 
 # Basic model parameters.
-parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST', 'cifar10', 'cifar100'])
+parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST', 'cifar10', 'cifar100', 'USPS'])
 parser.add_argument('--data', type=str, default='cache/data/')
 parser.add_argument('--output_dir', type=str, default='cache/models/')
 parser.add_argument('--batch_size', type=int, default=512)
+parser.add_argument('--lr', type=float, default=1e-3)
 args = parser.parse_args()
 
 os.makedirs(args.output_dir, exist_ok=True)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+criterion = torch.nn.CrossEntropyLoss().to(device)
 
 acc = 0
 acc_best = 0
-
-data_train_loader = get_mnist(True, args.batch_size)
-data_test_loader = get_mnist(False, args.batch_size)
-
-net = LeNet5().to(device)
-criterion = torch.nn.CrossEntropyLoss().to(device)
-optimizer = torch.optim.Adam(net.parameters(), lr=0.001)
 
 
 def adjust_learning_rate(optimizer, epoch):
@@ -44,13 +39,11 @@ def adjust_learning_rate(optimizer, epoch):
         param_group['lr'] = lr
 
 
-def train(epoch):
-    if args.dataset != 'MNIST':
-        adjust_learning_rate(optimizer, epoch)
+def train(net, data_train_loader, optimizer, epoch):
     global cur_batch_win
     net.train()
     loss_list, batch_list = [], []
-    for i, (images, labels) in enumerate(data_train_loader):
+    for step, (images, labels) in enumerate(data_train_loader):
         images, labels = images.to(device), labels.to(device)
 
         optimizer.zero_grad()
@@ -60,16 +53,16 @@ def train(epoch):
         loss = criterion(output, labels)
 
         loss_list.append(loss.data.item())
-        batch_list.append(i + 1)
+        batch_list.append(step + 1)
 
-        if i == 1:
-            print('Train - Epoch %d, Batch: %d, Loss: %f' % (epoch, i, loss.data.item()))
+        if step == 1:
+            print('Train - Epoch %d, Batch: %d, Loss: %f' % (epoch, step, loss.data.item()))
 
         loss.backward()
         optimizer.step()
 
 
-def test():
+def test(net, data_test_loader):
     global acc, acc_best
     net.eval()
     total_correct = 0
@@ -82,24 +75,43 @@ def test():
             pred = output.data.max(1)[1]
             total_correct += pred.eq(labels.data.view_as(pred)).sum()
 
-    avg_loss /= len(data_train_loader.dataset)
+    avg_loss /= len(data_test_loader.dataset)
     acc = float(total_correct) / len(data_test_loader.dataset)
     if acc_best < acc:
         acc_best = acc
     print('Test Avg. Loss: %f, Accuracy: %f' % (avg_loss.data.item(), acc))
 
 
-def train_and_test(epoch):
-    train(epoch)
-    test()
+def train_and_test(net, data_train_loader, data_test_loader, optimizer, epoch):
+    train(net, data_train_loader, optimizer, epoch)
+    test(net, data_test_loader)
 
 
 def main():
-    epoch = 10  # dataset is MNIST, 10 for epoch is enough
+    if args.dataset == "MNIST":
+        data_train_loader = get_mnist(True, args.batch_size)
+        data_test_loader = get_mnist(False, args.batch_size)
+    elif args.dataset == "USPS":
+        data_train_loader = get_usps(True, args.batch_size)
+        data_test_loader = get_usps(False, args.batch_size)
+    else:
+        print('Dataset {} not find. Program terminated'.format(args.dataset))
+        return
+
+    net = LeNet5().to(device)
+
+    optimizer = torch.optim.Adam(net.parameters(), lr=args.lr)
+
+    if args.dataset == 'MNIST':
+        epoch = 10  # if dataset is MNIST or USPS, 10 for epoch is enough
+    elif args.dataset == 'USPS':
+        epoch = 20
+    else:
+        epoch = 100
     for e in range(1, epoch):
-        train_and_test(e)
-    torch.save(net.state_dict(), args.output_dir + 'teacher.pt')
-    print("teacher model saved at ", args.output_dir, 'teacher.pt')
+        train_and_test(net, data_train_loader, data_test_loader, optimizer, e)
+    torch.save(net.state_dict(), args.output_dir + 'teacher_{}.pt'.format(args.dataset))
+    print("teacher model saved at ", args.output_dir, 'teacher_{}.pt'.format(args.dataset))
 
 
 if __name__ == '__main__':
