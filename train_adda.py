@@ -11,7 +11,7 @@ from models.critic import Critic
 from datasets.genimg import get_genimg
 from datasets.usps import get_usps
 from datasets.mnist import get_mnist
-from utils import eval_encoder_and_classifier, partial_load
+from utils import eval_encoder_and_classifier, partial_load, kd_loss_fn
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -189,7 +189,7 @@ def train_tgt(src_encoder, tgt_encoder, critic,
             #######################
             # 2.3 print step info #
             #######################
-            if ((step + 1) % opt.log_step == 0):
+            if (step + 1) % opt.log_step == 0:
                 print("Epoch [{}/{}] Step [{}/{}]:"
                       "d_loss={:.5f} g_loss={:.5f} d_acc={:.5f}"
                       .format(epoch + 1,
