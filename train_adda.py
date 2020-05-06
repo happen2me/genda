@@ -13,13 +13,9 @@ from datasets.usps import get_usps
 from datasets.mnist import get_mnist
 from utils import eval_encoder_and_classifier, partial_load, kd_loss_fn
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-teacher_path = 'cache/models/teacher.pt'
-student_path = 'cache/models/student.pt'
-encoder_path = 'cache/models/tgt_encoder.pt'
-
 parser = argparse.ArgumentParser()
+parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST','cifar10','cifar100', 'USPS'])
+parser.add_argument('--target', type=str, default='USPS', choices=['MNIST','cifar10','cifar100', 'USPS'])
 parser.add_argument('--model_root', type=str, default='cache/models/', help='interval for testinh the model')
 parser.add_argument('--num_epochs', type=int, default=2000, help='number of epochs of training')
 parser.add_argument('--batch_size', type=int, default=512, help='size of the batches')
@@ -37,7 +33,13 @@ parser.add_argument('--a', type=float, default=0.03, help='img optimization step
 parser.add_argument('--ie', type=float, default=1, help='img optimization steps')
 opt = parser.parse_args()
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+teacher_path = 'cache/models/teacher_{}.pt'.format(opt.dataset)
+student_path = 'cache/models/student_{}.pt'.format(opt.dataset)
+encoder_path = 'cache/models/tgt_encoder_{}2{}.pt'.format(opt.dataset, opt.target)
+
 teacher = partial_load(LeNet5, teacher_path)
+
 
 def pre_train_critic(src_encoder, critic, src_dataloader, tgt_dataloader):
     critic = critic.to(device)
@@ -83,8 +85,7 @@ def pre_train_critic(src_encoder, critic, src_dataloader, tgt_dataloader):
     return critic
 
 
-def train_tgt(src_encoder, tgt_encoder, critic,
-              src_data_loader, tgt_data_loader, classifier):
+def train_tgt(src_encoder, tgt_encoder, critic, tgt_data_loader, classifier):
     """Train encoder for target domain."""
     ####################
     # 1. setup network #
@@ -104,7 +105,6 @@ def train_tgt(src_encoder, tgt_encoder, critic,
     optimizer_critic = optim.Adam(critic.parameters(),
                                   lr=opt.d_learning_rate,
                                   betas=(opt.beta1, opt.beta2))
-    len_data_loader = min(len(src_data_loader), len(tgt_data_loader))
 
     ####################
     # 2. train network #
@@ -190,12 +190,11 @@ def train_tgt(src_encoder, tgt_encoder, critic,
             # 2.3 print step info #
             #######################
             if (step + 1) % opt.log_step == 0:
-                print("Epoch [{}/{}] Step [{}/{}]:"
+                print("Epoch [{}/{}] Step [{}]:"
                       "d_loss={:.5f} g_loss={:.5f} d_acc={:.5f}"
                       .format(epoch + 1,
                               opt.num_epochs,
                               step + 1,
-                              len_data_loader,
                               loss_critic.data.item(),
                               loss_tgt.data.item(),
                               domain_acc.data.item()))
@@ -225,8 +224,13 @@ def run():
     tgt_encoder = partial_load(LeNet5HalfEncoder, student_path)
     classifier = partial_load(LeNet5HalfClassifier, student_path)
     critic = Critic(42, 84, 2)
-    src_data_loader = get_genimg(True, opt.batch_size)
-    tgt_data_loader = get_usps(True, opt.batch_size)
+    if opt.target == 'USPS':
+        tgt_data_loader = get_usps(True, opt.batch_size)
+    elif opt.target == 'MNIST':
+        tgt_data_loader = get_mnist(True, opt.batch_size)
+    else:
+        print("adapting to {} is not yet implemented, abort")
+        return
 
     for p in critic.parameters():
         p.requires_grad = True
@@ -238,7 +242,7 @@ def run():
         p.requires_grad = False
 
     train_tgt(src_encoder, tgt_encoder, critic,
-              src_data_loader, tgt_data_loader, classifier)
+              tgt_data_loader, classifier)
     eval_encoder_and_classifier(tgt_encoder, classifier, tgt_data_loader)
 
 
