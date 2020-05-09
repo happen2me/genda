@@ -116,7 +116,7 @@ def main():
     if args.dataset == 'MNIST':
         epoch = 10  # if dataset is MNIST or USPS, 10 for epoch is enough
     elif args.dataset == 'USPS':
-        epoch = 20
+        epoch = 80
     else:
         epoch = 100
     for e in range(1, epoch):
