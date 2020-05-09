@@ -8,12 +8,13 @@ import argparse
 from datasets.mnist import get_mnist
 from datasets.usps import get_usps
 from datasets.mnist_m import get_mnist_m
+from datasets.svhn import get_svhn
 from utils import eval_model
 
 parser = argparse.ArgumentParser(description='train-teacher-network')
 
 # Basic model parameters.
-parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST', 'MNIST-M', 'USPS'])
+parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST', 'MNIST-M', 'USPS', 'SVHN'])
 parser.add_argument('--data', type=str, default='cache/data/')
 parser.add_argument('--output_dir', type=str, default='cache/models/')
 parser.add_argument('--batch_size', type=int, default=512)
@@ -98,6 +99,9 @@ def main():
     elif args.dataset == "MNIST-M":
         data_train_loader = get_mnist_m(True, args.batch_size)
         data_test_loader = get_mnist_m(False, args.batch_size)
+    elif args.dataset == 'SVHN':
+        data_train_loader = get_svhn(True, args.batch_size)
+        data_test_loader = get_svhn(False, args.batch_size)
     else:
         print('Dataset {} not find. Program terminated'.format(args.dataset))
         return
