@@ -177,7 +177,7 @@ def get_mnist_m(train, batch_size):
     data_loader = torch.utils.data.DataLoader(
         dataset=mnist_m_dataset,
         batch_size=batch_size,  # train:256, test: 1024
-        num_workers=8,
+        num_workers=4,
         shuffle=True,
     )
 
