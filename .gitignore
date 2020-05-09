@@ -245,3 +245,5 @@ test.py
 .idea
 *.out
 visual.py
+*.ipynb
+tsne.py
