@@ -9,15 +9,15 @@ def get_svhn(train, batch_size):
         transforms.ToTensor(),
     ])
 
-    dataset = datasets.MNIST(root='cache/data/',
-                                     train=train,
-                                     transform=pre_process,
-                                     download=True)
+    dataset = datasets.SVHN(root='cache/data/svhn/',
+                            split='train' if train else 'test',
+                            transform=pre_process,
+                            download=True)
 
     data_loader = torch.utils.data.DataLoader(
         dataset=dataset,
         batch_size=batch_size,  # train:256, test: 1024
-        num_workers=4,
+        num_workers=1,
         shuffle=True,
     )
 
