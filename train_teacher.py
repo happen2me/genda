@@ -106,7 +106,7 @@ def main():
         print('Dataset {} not find. Program terminated'.format(args.dataset))
         return
 
-    if args.dataset == "MNIST-M":
+    if args.dataset == "MNIST-M" or args.dataset == 'SVHN':
         net = LeNet5(channel=3).to(device)
     else:
         net = LeNet5().to(device)
