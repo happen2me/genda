@@ -13,11 +13,11 @@ def print_detail(layer, img):
 
 
 class C1(nn.Module):
-    def __init__(self):
+    def __init__(self, channel):
         super(C1, self).__init__()
         # Layer 1: Convolutional. Input_channel = 1. Output_channel = 6.
         self.c1 = nn.Sequential(OrderedDict([
-            ('c1', nn.Conv2d(1, 6, kernel_size=(5, 5))),
+            ('c1', nn.Conv2d(channel, 6, kernel_size=(5, 5))),
             ('relu1', nn.ReLU()),
             ('d1', nn.Dropout2d(p=dropout_rate)),
             ('s1', nn.MaxPool2d(kernel_size=(2, 2), stride=2))
@@ -119,10 +119,11 @@ class LeNet5(nn.Module):
     Input - 1x32x32
     Output - 10
     """
-    def __init__(self):
+    def __init__(self, channel=1):
         super(LeNet5, self).__init__()
+        self.channel = 3
 
-        self.c1 = C1()
+        self.c1 = C1(channel)
         self.c2 = C2()
         self.c3 = C3()
         self.f4 = F4()
