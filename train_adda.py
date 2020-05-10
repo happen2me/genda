@@ -40,6 +40,9 @@ encoder_path = 'cache/models/tgt_encoder_{}2{}.pt'.format(opt.dataset, opt.targe
 
 teacher = partial_load(LeNet5, teacher_path)
 
+if opt.target == 'MNIST':
+    opt.num_epochs = 2000
+    opt.log_step = 40
 
 def pre_train_critic(src_encoder, critic, src_dataloader, tgt_dataloader):
     critic = critic.to(device)
@@ -125,7 +128,7 @@ def train_tgt(src_encoder, tgt_encoder, critic, tgt_data_loader, classifier):
             optimizer_img = torch.optim.Adam([opt_imgs], opt.lr_O)
 
             # optimize img
-            for step in range(opt.img_opt_step):
+            for i in range(opt.img_opt_step):
                 output, feature = teacher(opt_imgs, out_feature=True)
                 loss_oh = criterion(output, output.data.max(1)[1])
                 loss_act = -feature.abs().mean()
@@ -239,6 +242,8 @@ def run():
     for p in classifier.parameters():
         p.requires_grad = False
 
+    print('initial eval of encoder on tgt')
+    eval_encoder_and_classifier(tgt_encoder, classifier, tgt_data_loader) 
     train_tgt(src_encoder, tgt_encoder, critic,
               tgt_data_loader, classifier)
     eval_encoder_and_classifier(tgt_encoder, classifier, tgt_data_loader)
