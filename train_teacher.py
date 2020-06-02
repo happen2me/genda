@@ -9,6 +9,7 @@ from datasets.mnist import get_mnist
 from datasets.usps import get_usps
 from datasets.mnist_m import get_mnist_m
 from datasets.svhn import get_svhn
+from models.resnet import ResNet34
 from utils import eval_model
 
 parser = argparse.ArgumentParser(description='train-teacher-network')
@@ -107,7 +108,7 @@ def main():
         return
 
     if args.dataset == "MNIST-M" or args.dataset == 'SVHN':
-        net = LeNet5(channel=3).to(device)
+        net = ResNet34().to(device)
     else:
         net = LeNet5().to(device)
 
