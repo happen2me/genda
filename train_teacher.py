@@ -15,7 +15,7 @@ from utils import eval_model
 parser = argparse.ArgumentParser(description='train-teacher-network')
 
 # Basic model parameters.
-parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST', 'MNIST-M', 'USPS', 'SVHN'])
+parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST', 'MNIST-M', 'USPS', 'SVHN', 'MNIST3'])
 parser.add_argument('--data', type=str, default='cache/data/')
 parser.add_argument('--output_dir', type=str, default='cache/models/')
 parser.add_argument('--batch_size', type=int, default=512)
@@ -94,6 +94,9 @@ def main():
     if args.dataset == "MNIST":
         data_train_loader = get_mnist(True, args.batch_size)
         data_test_loader = get_mnist(False, args.batch_size)
+    elif args.dataset == 'MNIST3':
+        data_train_loader = get_mnist(True, args.batch_size, channels=3)
+        data_test_loader = get_mnist(False, args.batch_size, channels=3)
     elif args.dataset == "USPS":
         data_train_loader = get_usps(True, args.batch_size)
         data_test_loader = get_usps(False, args.batch_size)
@@ -107,7 +110,7 @@ def main():
         print('Dataset {} not find. Program terminated'.format(args.dataset))
         return
 
-    if args.dataset == "MNIST-M" or args.dataset == 'SVHN':
+    if args.dataset=="MNIST-M" or args.dataset=='SVHN' or args.dataset=='MNIST3':
         net = ResNet34().to(device)
     else:
         net = LeNet5().to(device)
@@ -119,7 +122,7 @@ def main():
     elif args.dataset == 'USPS':
         epoch = 80
     else:
-        epoch = 100
+        epoch = 30
     for e in range(1, epoch):
         train_and_test(net, data_train_loader, data_test_loader, optimizer, e)
     torch.save(net.state_dict(), args.output_dir + 'teacher_{}.pt'.format(args.dataset))
