@@ -58,8 +58,7 @@ def alter_dict_key(state_dict):
     return new_dict
 
 
-def partial_load(model_cls, model_path):
-    model = model_cls().to(device)
+def partial_load_model(model, model_path):
     model.eval()
     print("loading ", type(model).__name__, " from ", model_path)
     saved_state_dict = torch.load(model_path, map_location=device)
@@ -89,6 +88,11 @@ def partial_load(model_cls, model_path):
     model_state_dict.update(filtered_dict)
     model.load_state_dict(model_state_dict)
     return model
+
+
+def partial_load(model_cls, model_path):
+    model = model_cls().to(device)
+    partial_load_model(model, model_path)
 
 
 def kd_loss_fn(s_output, t_output, temperature, labels=None, alpha=0.4, weights=None):
