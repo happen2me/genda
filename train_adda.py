@@ -16,7 +16,7 @@ from utils import eval_encoder_and_classifier, partial_load, kd_loss_fn
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST','cifar10','cifar100', 'USPS'])
 parser.add_argument('--target', type=str, default='USPS', choices=['MNIST','cifar10','cifar100', 'USPS'])
-parser.add_argument('--model_root', type=str, default='cache/models/', help='interval for testinh the model')
+parser.add_argument('--model_root', type=str, default='cache/models/')
 parser.add_argument('--num_epochs', type=int, default=2000, help='number of epochs of training')
 parser.add_argument('--batch_size', type=int, default=512, help='size of the batches')
 parser.add_argument('--c_learning_rate', type=float, default=1e-4, help='c learning rate')
@@ -27,10 +27,10 @@ parser.add_argument('--log_step', type=int, default=20, help='interval for loggi
 parser.add_argument('--save_step', type=int, default=100, help='interval for saving the model')
 parser.add_argument('--eval_step', type=int, default=1, help='interval for testinh the model')
 parser.add_argument('--img_opt_step', type=int, default=200, help='img optimization steps')
-parser.add_argument('--lr_O', type=float, default=1e-2, help='img optimization steps')
-parser.add_argument('--oh', type=float, default=1, help='img optimization steps')
-parser.add_argument('--a', type=float, default=0.03, help='img optimization steps')
-parser.add_argument('--ie', type=float, default=1, help='img optimization steps')
+parser.add_argument('--lr_O', type=float, default=1e-2)
+parser.add_argument('--oh', type=float, default=1)
+parser.add_argument('--a', type=float, default=0.03)
+parser.add_argument('--ie', type=float, default=1)
 opt = parser.parse_args()
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -44,52 +44,10 @@ if opt.target == 'MNIST':
     opt.num_epochs = 2000
     opt.log_step = 40
 
-def pre_train_critic(src_encoder, critic, src_dataloader, tgt_dataloader):
-    critic = critic.to(device)
-    num_epoch = 10
-    criterion = nn.CrossEntropyLoss()
-    optimizer_critic = optim.Adam(critic.parameters(),
-                                  lr=opt.d_learning_rate,
-                                  betas=(opt.beta1, opt.beta2))
-
-    for epoch in range(num_epoch):
-        data_zip = enumerate(zip(src_dataloader, tgt_dataloader))
-        for step, ((images_src, _), (images_tgt, _)) in data_zip:
-            # make images variable
-            images_src = images_src.to(device)
-            images_tgt = images_tgt.to(device)
-
-            # zero gradients for optimizer
-            optimizer_critic.zero_grad()
-
-            # extract and concat features
-            feat_src = src_encoder(images_src)
-            feat_tgt = src_encoder(images_tgt)
-            feat_concat = torch.cat((feat_src, feat_tgt), 0).detach().to(device)
-
-            # predict on discriminator
-            pred_concat = critic(feat_concat)
-
-            # prepare real and fake label, src is 1 and tgt is 0
-            label_src = torch.ones(feat_src.size(0)).long().to(device)
-            label_tgt = torch.zeros(feat_tgt.size(0)).long().to(device)
-            label_concat = torch.cat((label_src, label_tgt), 0)
-
-            # compute loss for critic
-            loss_critic = criterion(pred_concat, label_concat)
-            loss_critic.backward()
-
-            # optimize critic
-            optimizer_critic.step()
-
-            pred_cls = torch.squeeze(pred_concat.max(1)[1])
-            acc = (pred_cls == label_concat).float().mean()
-            print('[pre-train critic]epoch {}:'.format(epoch), 'step {}:'.format(step), 'acc: {}'.format(acc))
-    return critic
-
 
 def train_tgt(src_encoder, tgt_encoder, critic, tgt_data_loader, classifier):
-    """Train encoder for target domain."""
+    """利用目标领域数据优化tgt_encoder"""
+
     ####################
     # 1. setup network #
     ####################

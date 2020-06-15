@@ -31,7 +31,7 @@ acc_best = 0
 
 
 def adjust_learning_rate(optimizer, epoch):
-    """For resnet, the lr starts from 0.1, and is divided by 10 at 80 and 120 epochs"""
+    """根据epoch调整学习速率"""
     if epoch < 80:
         lr = 0.1
     elif epoch < 120:
@@ -43,18 +43,15 @@ def adjust_learning_rate(optimizer, epoch):
 
 
 def train(net, data_train_loader, optimizer, epoch):
+    """训练教师模型"""
     global cur_batch_win
     net.train()
     loss_list, batch_list = [], []
     for step, (images, labels) in enumerate(data_train_loader):
         images, labels = images.to(device), labels.to(device)
-
         optimizer.zero_grad()
-
         output = net(images)
-
         loss = criterion(output, labels)
-
         loss_list.append(loss.data.item())
         batch_list.append(step + 1)
 
@@ -66,6 +63,7 @@ def train(net, data_train_loader, optimizer, epoch):
 
 
 def test(net, data_test_loader):
+    """测试教师模型"""
     global acc, acc_best
     net.eval()
     total_correct = 0

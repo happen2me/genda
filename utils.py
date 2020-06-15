@@ -5,7 +5,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 def eval_model(model, data_loader):
-    """Evaluation for target encoder by source classifier on target dataset."""
+    """在data_loader上衡量model的精确度"""
     # set eval state for Dropout and BN layers
     model.eval()
 
@@ -36,6 +36,7 @@ def eval_model(model, data_loader):
 
 
 def eval_encoder_and_classifier(encoder, classifier, data_loader):
+    """在data_loader上评估把encoder和classifier合在一起的模型的准确度"""
     class Full(nn.Module):
         def __init__(self):
             super().__init__()
@@ -52,6 +53,7 @@ def eval_encoder_and_classifier(encoder, classifier, data_loader):
 
 
 def alter_dict_key(state_dict):
+    """删除掉state_dict字典里的头7个字符"""
     new_dict = {}
     for key, val in state_dict.items():
         new_dict[key[7:]] = val
@@ -59,6 +61,7 @@ def alter_dict_key(state_dict):
 
 
 def partial_load_model(model, model_path):
+    """从model_path加载权重到model。仅加载key值一致的权重，忽略其它。"""
     model.eval()
     print("loading ", type(model).__name__, " from ", model_path)
     saved_state_dict = torch.load(model_path, map_location=device)
@@ -91,11 +94,18 @@ def partial_load_model(model, model_path):
 
 
 def partial_load(model_cls, model_path):
+    """部分加载权重
+
+    参数:
+       model_cls: 模型的类定义
+       model_path: 权重路径
+    """
     model = model_cls().to(device)
     partial_load_model(model, model_path)
 
 
 def kd_loss_fn(s_output, t_output, temperature, labels=None, alpha=0.4, weights=None):
+    """蒸馏损失函数定义"""
     s_output = F.log_softmax(s_output/temperature, dim=1)
     t_output = F.softmax(t_output/temperature, dim=1)
     kd_loss = F.kl_div(s_output, t_output, reduction='batchmean')

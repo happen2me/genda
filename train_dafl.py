@@ -10,13 +10,15 @@ from torchvision.datasets.mnist import MNIST
 from models.lenet_half import LeNet5Half
 from models.generator import Generator
 from models.lenet import LeNet5
+import models.resnet as resnet
 from datasets.mnist import get_mnist
 from datasets.usps import get_usps
+from datasets.mnist_m import get_mnist_m
 from utils import partial_load, eval_model
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST','cifar10','cifar100', 'USPS'])
-parser.add_argument('--target', type=str, default='USPS', choices=['MNIST','cifar10','cifar100', 'USPS'])
+parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST','cifar10','cifar100', 'USPS', 'MNIST3', 'MNIST-M'])
+parser.add_argument('--target', type=str, default='USPS', choices=['MNIST','cifar10','cifar100', 'USPS', 'MNIST3', 'MNIST-M'])
 parser.add_argument('--data', type=str, default='cache/data/')
 parser.add_argument('--teacher_dir', type=str, default='cache/models/')
 parser.add_argument('--n_epochs', type=int, default=200, help='number of epochs of training')
@@ -65,15 +67,27 @@ def run():
     teacher = nn.DataParallel(teacher)
 
     # Configure data loader
-    net = LeNet5Half().to(device)
+    if opt.dataset == 'MNIST' or opt.dataset == 'USPS':
+        net = LeNet5Half().to(device)
+    else:
+        net = resnet.ResNet18().to(device)
     net = nn.DataParallel(net)
 
+    # Set data loader according to arguments
     if opt.dataset == 'MNIST':
         data_test_loader = get_mnist(True, batch_size=opt.batch_size)
+    elif opt.dataset == 'MNIST3':
+        data_test_loader = get_mnist(True, batch_size=opt.batch_size, channels=3)
+    elif opt.dataset == 'MNIST-M':
+        data_test_loader = get_mnist_m(True, batch_size=opt.batch_size)
     else:
         data_test_loader = get_usps(True,  batch_size=opt.batch_size)
     if opt.target == 'USPS':
         tgt_loader = get_usps(True, batch_size=opt.batch_size)
+    elif opt.target == 'MNIST-M':
+        tgt_loader = get_mnist_m(True, batch_size=opt.batch_size)
+    elif opt.target == 'MNIST3':
+        tgt_loader = get_mnist(True, batch_size=opt.batch_size, channels=3)
     else:
         tgt_loader = get_mnist(True, batch_size=opt.batch_size)
 
@@ -95,10 +109,10 @@ def run():
             opt_imgs.requires_grad = True
             optimizer_img = torch.optim.Adam([opt_imgs], opt.lr_O)
 
-            # optimize img
+            # optimize img: generate "source img"
             for img_opt_step in range(opt.img_opt_step):
                 output, feature = teacher(opt_imgs, out_feature=True)
-                loss_oh = criterion(output, output.data.max(1)[1])
+                loss_oh = criterion(output, output.data.max(1)[1])  # this loss makes it more like a source image
                 loss_act = -feature.abs().mean()
                 softmax_o = torch.nn.functional.softmax(output, dim=1).mean(dim=0)
                 loss_ie = (softmax_o * torch.log(softmax_o)).sum()
@@ -108,6 +122,7 @@ def run():
                 optimizer_img.step()
 
             output = teacher(opt_imgs)
+            # train student network with knowledge distillation
             loss_kd = kdloss(net(opt_imgs), output.detach())
             loss_kd.backward()
             optimizer_student.step()
