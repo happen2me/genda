@@ -2,10 +2,11 @@ import torch
 from torchvision import datasets, transforms
 
 
-def get_mnist(train, batch_size=1024):
+def get_mnist(train, batch_size=1024, channels=1):
     """Get MNIST dataset loader."""
     # image pre-processing
     pre_process = transforms.Compose([
+                       transforms.Grayscale(channels),
                        transforms.Resize((32, 32)),
                        transforms.ToTensor(),
                        transforms.Normalize((0.1307,), (0.3081,))

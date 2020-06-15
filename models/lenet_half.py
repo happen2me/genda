@@ -3,6 +3,7 @@ from collections import OrderedDict
 
 dropout_rate = 0.0
 
+
 class C1(nn.Module):
     def __init__(self):
         super(C1, self).__init__()
